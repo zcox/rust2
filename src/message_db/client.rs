@@ -44,14 +44,14 @@ impl MessageDbClient {
     }
 
     /// Get a reference to the connection pool
-    pub(crate) fn pool(&self) -> &Pool {
-        &self.pool
-    }
+    // pub(crate) fn pool(&self) -> &Pool {
+    //     &self.pool
+    // }
 
-    /// Get the schema name
-    pub(crate) fn schema_name(&self) -> &str {
-        &self.schema_name
-    }
+    // /// Get the schema name
+    // pub(crate) fn schema_name(&self) -> &str {
+    //     &self.schema_name
+    // }
 
     /// Write a message to a stream with optional optimistic concurrency control
     ///

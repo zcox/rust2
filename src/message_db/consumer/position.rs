@@ -198,7 +198,7 @@ impl PositionTracker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn test_position_stream_name() {
