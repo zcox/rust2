@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::config::GenerationConfig;
+use crate::llm::claude::ClaudeModel;
+use crate::llm::gemini::GeminiModel;
 
 /// Request to generate content from an LLM
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,6 +244,25 @@ impl UsageMetadata {
         self.input_tokens += other.input_tokens;
         self.output_tokens += other.output_tokens;
         self.total_tokens = self.input_tokens + self.output_tokens;
+    }
+}
+
+/// Unified model enum for all supported LLM providers
+#[derive(Debug, Clone)]
+pub enum Model {
+    /// Anthropic Claude model on Vertex AI
+    Claude(ClaudeModel),
+    /// Google Gemini model on Vertex AI
+    Gemini(GeminiModel),
+}
+
+impl Model {
+    /// Get the model identifier as a string
+    pub fn as_str(&self) -> &str {
+        match self {
+            Model::Claude(model) => model.as_str(),
+            Model::Gemini(model) => model.as_str(),
+        }
     }
 }
 

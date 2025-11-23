@@ -14,11 +14,13 @@ pub mod http;
 pub use core::{
     config::GenerationConfig,
     error::LlmError,
-    provider::LlmProvider,
+    provider::{create_provider, LlmProvider},
     types::{
         ContentBlock, ContentDelta, FinishReason, GenerateRequest, Message, MessageRole,
-        StreamEvent, ToolDeclaration, UsageMetadata,
+        Model, StreamEvent, ToolDeclaration, UsageMetadata,
     },
 };
 
+pub use claude::ClaudeModel;
+pub use gemini::GeminiModel;
 pub use tools::{FunctionRegistry, ToolExecutor};
