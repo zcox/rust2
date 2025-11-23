@@ -6,3 +6,6 @@ pub mod sse;
 
 // Message DB client library
 pub mod message_db;
+
+// LLM abstraction layer
+pub mod llm;
