@@ -1390,6 +1390,7 @@ dependencies = [
 name = "rust2"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "bytes",
  "chrono",
@@ -1398,6 +1399,7 @@ dependencies = [
  "futures",
  "futures-util",
  "gcp_auth",
+ "pin-utils",
  "reqwest",
  "serde",
  "serde_json",

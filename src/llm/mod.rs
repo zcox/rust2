@@ -9,6 +9,7 @@ pub mod gemini;
 pub mod claude;
 pub mod tools;
 pub mod http;
+pub mod agent;
 
 // Re-export commonly used types
 pub use core::{
@@ -24,3 +25,4 @@ pub use core::{
 pub use claude::ClaudeModel;
 pub use gemini::GeminiModel;
 pub use tools::{FunctionRegistry, ToolExecutor};
+pub use agent::{Agent, AgentError, AgentEvent};
