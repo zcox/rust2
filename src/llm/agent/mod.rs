@@ -263,6 +263,18 @@ impl Agent {
 
                 // Check if we need to execute tools
                 if tool_uses.is_empty() {
+                    // Build final assistant message with text only
+                    let mut assistant_content = Vec::new();
+                    if !text_content.is_empty() {
+                        assistant_content.push(ContentBlock::Text { text: text_content });
+                    }
+
+                    // Add to conversation history
+                    self.messages.push(Message {
+                        role: MessageRole::Assistant,
+                        content: assistant_content,
+                    });
+
                     // No tools - we're done!
                     yield Ok(AgentEvent::Completed);
                     return;

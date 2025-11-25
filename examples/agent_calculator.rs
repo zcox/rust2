@@ -212,7 +212,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("----------------------------------------");
     println!("\nFull conversation history:");
     for (i, msg) in agent.messages().iter().enumerate() {
-        println!("{}. {:?} ({} content blocks)", i + 1, msg.role, msg.content.len());
+        println!("{}. {:?}", i + 1, msg.role);
+        for (j, block) in msg.content.iter().enumerate() {
+            match block {
+                rust2::llm::ContentBlock::Text { text } => {
+                    println!("   [{}] Text: {}", j, text);
+                }
+                rust2::llm::ContentBlock::ToolUse { id, name, input } => {
+                    println!("   [{}] Tool Use: {} (id: {})", j, name, id);
+                    println!("       Args: {}", serde_json::to_string_pretty(input).unwrap());
+                }
+                rust2::llm::ContentBlock::ToolResult { tool_use_id, content, is_error } => {
+                    let status = if *is_error { "Error" } else { "Result" };
+                    println!("   [{}] Tool {}: (id: {})", j, status, tool_use_id);
+                    println!("       {}", content);
+                }
+            }
+        }
+        println!();
     }
 
     Ok(())
