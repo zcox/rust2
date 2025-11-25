@@ -25,17 +25,31 @@
 
 use futures::StreamExt;
 use rust2::llm::{
-    create_provider, Agent, AgentEvent, ClaudeModel, ContentDelta, GenerationConfig, Model,
-    StreamEvent, ToolDeclaration, FunctionRegistry,
+    create_provider, Agent, AgentEvent, ClaudeModel, ContentDelta,
+    GenerationConfig, Model, StreamEvent, FunctionRegistry,
 };
+use rust2_tool_macros::tool;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::io::Write;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+enum Operation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+#[derive(Deserialize, JsonSchema)]
 struct CalculatorArgs {
-    operation: String,
+    /// The operation to perform
+    operation: Operation,
+    /// First operand
     a: f64,
+    /// Second operand
     b: f64,
 }
 
@@ -44,14 +58,26 @@ struct CalculatorResult {
     result: f64,
 }
 
+/// Calculator tool function
+///
+/// The #[tool] macro automatically generates a module `calculator_tool` containing:
+/// - `NAME`: A constant with the tool name
+/// - `declaration()`: Function returning the ToolDeclaration
+/// - `execute`: Re-export of the original calculator function
+///
+/// This eliminates the need for manual JSON schema definitions!
+#[tool(description = "Perform basic arithmetic operations (add, subtract, multiply, divide)")]
 async fn calculator(args: CalculatorArgs) -> Result<CalculatorResult, String> {
-    let result = match args.operation.as_str() {
-        "add" => args.a + args.b,
-        "subtract" => args.a - args.b,
-        "multiply" => args.a * args.b,
-        "divide" if args.b != 0.0 => args.a / args.b,
-        "divide" => return Err("Division by zero".to_string()),
-        _ => return Err(format!("Unknown operation: {}", args.operation)),
+    let result = match args.operation {
+        Operation::Add => args.a + args.b,
+        Operation::Subtract => args.a - args.b,
+        Operation::Multiply => args.a * args.b,
+        Operation::Divide => {
+            if args.b == 0.0 {
+                return Err("Division by zero".to_string());
+            }
+            args.a / args.b
+        }
     };
 
     Ok(CalculatorResult { result })
@@ -91,33 +117,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Setting up tools...");
 
-    // Set up tools
+    // Set up tools - now much simpler with the #[tool] macro module pattern!
     let mut registry = FunctionRegistry::new();
-    registry.register_async("calculator", calculator);
 
-    let tool_declarations = vec![ToolDeclaration {
-        name: "calculator".to_string(),
-        description: "Perform basic arithmetic operations".to_string(),
-        input_schema: serde_json::json!({
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["add", "subtract", "multiply", "divide"],
-                    "description": "The operation to perform"
-                },
-                "a": {
-                    "type": "number",
-                    "description": "First operand"
-                },
-                "b": {
-                    "type": "number",
-                    "description": "Second operand"
-                }
-            },
-            "required": ["operation", "a", "b"]
-        }),
-    }];
+    // Register tools - declarations are stored internally in the registry
+    registry.register(calculator_tool::registration())?;
+
+    // For multiple tools, you could use the register_tools! macro:
+    // register_tools!(registry, calculator_tool, weather_tool)?;
+
+    // Get all registered tool declarations
+    let tool_declarations = registry.get_declarations();
 
     // Create agent
     let mut agent = Agent::new(

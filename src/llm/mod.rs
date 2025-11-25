@@ -24,5 +24,5 @@ pub use core::{
 
 pub use claude::ClaudeModel;
 pub use gemini::GeminiModel;
-pub use tools::{FunctionRegistry, ToolExecutor};
+pub use tools::{create_tool_declaration, FunctionRegistry, ToolExecutor};
 pub use agent::{Agent, AgentError, AgentEvent};
