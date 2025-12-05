@@ -45,13 +45,41 @@ cargo build
 cargo build --release
 ```
 
+### Configuration
+
+Before running the server, configure the required environment variables in a `.env` file:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and set your GCP credentials
+GCP_PROJECT_ID=your-project-id
+GCP_LOCATION=us-central1
+```
+
+**GCP Authentication:**
+The server uses Google Cloud Application Default Credentials (ADC) for authenticating with Vertex AI. Set up authentication using one of these methods:
+
+1. **Service Account Key** (recommended for development):
+   ```bash
+   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+   ```
+
+2. **User Credentials**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+3. **Automatic** (on GCP services like Cloud Run, Compute Engine, or GKE)
+
 ### Running the Server
 
 ```bash
 cargo run
 ```
 
-The server will start on `http://127.0.0.1:3030`
+The server will start on `http://127.0.0.1:3030` using Gemini 2.5 Flash for LLM responses.
 
 ### Running Tests
 
@@ -104,7 +132,7 @@ Send a message to a thread and receive streaming SSE responses.
 **Example:**
 ```bash
 curl -N -H "Content-Type: application/json" \
-  -d '{"text":"Hello"}' \
+  -d '{"text":"Write a haiku about computers"}' \
   http://localhost:3030/api/v1/threads/550e8400-e29b-41d4-a716-446655440000
 ```
 

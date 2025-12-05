@@ -8,8 +8,15 @@
 //! - Returns a stream of events throughout the entire loop
 
 mod error;
+pub mod event_sourced;
+pub mod events;
+pub mod projection;
+pub mod store;
 
 pub use error::AgentError;
+pub use event_sourced::EventSourcedAgent;
+pub use projection::project_events_to_messages;
+pub use store::ThreadStore;
 
 use crate::llm::core::{
     config::GenerationConfig,

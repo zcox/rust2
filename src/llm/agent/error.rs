@@ -18,4 +18,8 @@ pub enum AgentError {
     /// Maximum iterations reached without completion
     #[error("Maximum iterations reached ({0})")]
     MaxIterationsReached(usize),
+
+    /// Error from the event store
+    #[error("Store error: {0}")]
+    Store(String),
 }

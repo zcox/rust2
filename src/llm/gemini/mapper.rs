@@ -23,10 +23,14 @@ pub fn to_gemini_request(request: GenerateRequest) -> GenerateContentRequest {
         system_instruction: request.system.map(|s| SystemInstruction {
             parts: vec![Part::Text { text: s }],
         }),
-        tools: request.tools.map(|tools| {
-            vec![Tool {
-                function_declarations: tools.into_iter().map(to_gemini_function_declaration).collect(),
-            }]
+        tools: request.tools.and_then(|tools| {
+            if tools.is_empty() {
+                None
+            } else {
+                Some(vec![Tool {
+                    function_declarations: tools.into_iter().map(to_gemini_function_declaration).collect(),
+                }])
+            }
         }),
         generation_config: Some(to_gemini_generation_config(request.config)),
     }

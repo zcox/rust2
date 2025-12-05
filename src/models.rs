@@ -51,7 +51,7 @@ pub struct ThreadResponse {
 }
 
 // Request Types
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendMessageRequest {
     pub text: String,
 }
