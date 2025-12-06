@@ -180,6 +180,14 @@ impl LlmProvider for GeminiClient {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, LlmError>> + Send>>, LlmError> {
         self.make_streaming_request(request).await
     }
+
+    fn provider_name(&self) -> &str {
+        "gemini"
+    }
+
+    fn model_id(&self) -> &str {
+        self.model.as_str()
+    }
 }
 
 #[cfg(test)]

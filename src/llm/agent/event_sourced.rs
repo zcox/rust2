@@ -101,7 +101,7 @@ pub struct EventSourcedAgent {
     /// Thread store for MessageDB persistence
     store: ThreadStore,
 
-    /// Tool declarations available to the LLM
+    /// Tool declarations available to the L LM
     tool_declarations: Vec<ToolDeclaration>,
 
     /// Generation configuration (temperature, max_tokens, etc.)
@@ -254,8 +254,8 @@ impl EventSourcedAgent {
 
                 // Record LLM call started
                 let llm_call_event = ThreadEvent::LlmCallStarted(LlmCallStartedData {
-                    provider: "claude".to_string(), // TODO: Get from provider
-                    model: "unknown".to_string(), // TODO: Get from provider metadata
+                    provider: provider.provider_name().to_string(),
+                    model: provider.model_id().to_string(),
                     message_count: messages.len(),
                     timestamp: Utc::now(),
                 });
@@ -561,55 +561,4 @@ impl EventSourcedAgent {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::llm::core::error::LlmError;
-    use async_trait::async_trait;
-
-    // Mock LLM provider for testing
-    struct MockProvider {
-        responses: Vec<Vec<StreamEvent>>,
-        call_count: std::sync::Arc<std::sync::Mutex<usize>>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for MockProvider {
-        async fn stream_generate(
-            &self,
-            _request: GenerateRequest,
-        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, LlmError>> + Send>>, LlmError>
-        {
-            let mut count = self.call_count.lock().unwrap();
-            let index = *count;
-            *count += 1;
-
-            if index >= self.responses.len() {
-                return Err(LlmError::StreamError("No more responses".to_string()));
-            }
-
-            let events = self.responses[index].clone();
-            Ok(Box::pin(futures::stream::iter(
-                events.into_iter().map(Ok),
-            )))
-        }
-    }
-
-    // Mock tool executor for testing
-    struct MockExecutor;
-
-    #[async_trait]
-    impl ToolExecutor for MockExecutor {
-        async fn execute(
-            &self,
-            _tool_use_id: String,
-            _name: String,
-            _arguments: serde_json::Value,
-        ) -> Result<String, String> {
-            Ok(serde_json::json!({"result": 42}).to_string())
-        }
-    }
-
-    // Note: Unit tests with mock store would go here.
-    // Real integration tests are in tests/agent_store_test.rs and tests/event_sourced_agent_test.rs
-}
+// Note: Integration tests are in tests/agent_store_test.rs and tests/event_sourced_agent_test.rs

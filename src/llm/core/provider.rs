@@ -25,6 +25,12 @@ pub trait LlmProvider: Send + Sync {
         &self,
         request: GenerateRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, LlmError>> + Send>>, LlmError>;
+
+    /// Get the provider name (e.g., "claude", "gemini")
+    fn provider_name(&self) -> &str;
+
+    /// Get the model identifier (e.g., "claude-sonnet-4-5@20250929", "gemini-2.5-flash")
+    fn model_id(&self) -> &str;
 }
 
 /// Create an LLM provider from a model specification
