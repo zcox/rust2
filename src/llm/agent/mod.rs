@@ -379,6 +379,14 @@ mod tests {
                 events.into_iter().map(Ok),
             )))
         }
+
+        fn provider_name(&self) -> &str {
+            "mock"
+        }
+
+        fn model_id(&self) -> &str {
+            "mock-model"
+        }
     }
 
     // Mock tool executor for testing

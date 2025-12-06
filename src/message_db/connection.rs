@@ -127,7 +127,7 @@ impl MessageDbConfig {
 
         // Set search_path to include message_store schema
         // This is critical for Message DB functions to work properly
-        cfg.options(&format!("-c search_path={},public", self.schema_name));
+        cfg.options(format!("-c search_path={},public", self.schema_name));
 
         let manager_config = ManagerConfig {
             recycling_method: RecyclingMethod::Fast,

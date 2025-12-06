@@ -124,7 +124,7 @@ pub fn get_category_types(stream_name: &str) -> Vec<String> {
                 .map(|s| s.to_string())
                 .collect()
         })
-        .unwrap_or_else(Vec::new)
+        .unwrap_or_default()
 }
 
 /// Extract just the base category name without type qualifiers.
@@ -205,12 +205,12 @@ mod tests {
 
     #[test]
     fn test_is_category() {
-        assert_eq!(is_category("account"), true);
-        assert_eq!(is_category("account-123"), false);
-        assert_eq!(is_category("account:command"), true);
-        assert_eq!(is_category("account:command-123"), false);
-        assert_eq!(is_category("transaction:event+audit"), true);
-        assert_eq!(is_category("transaction:event+audit-xyz"), false);
+        assert!(is_category("account"));
+        assert!(!is_category("account-123"));
+        assert!(is_category("account:command"));
+        assert!(!is_category("account:command-123"));
+        assert!(is_category("transaction:event+audit"));
+        assert!(!is_category("transaction:event+audit-xyz"));
     }
 
     #[test]

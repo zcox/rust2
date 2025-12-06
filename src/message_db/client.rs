@@ -43,7 +43,7 @@ impl MessageDbClient {
         Ok(Self { pool, schema_name })
     }
 
-    /// Get a reference to the connection pool
+    // /// Get a reference to the connection pool
     // pub(crate) fn pool(&self) -> &Pool {
     //     &self.pool
     // }
@@ -52,7 +52,6 @@ impl MessageDbClient {
     // pub(crate) fn schema_name(&self) -> &str {
     //     &self.schema_name
     // }
-
     /// Write a message to a stream with optional optimistic concurrency control
     ///
     /// Returns the stream position of the written message.

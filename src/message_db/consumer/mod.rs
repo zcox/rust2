@@ -87,9 +87,8 @@
 /// - Updated every N messages (configurable)
 /// - Allows resuming from last position on restart
 /// - Force flush with `consumer.flush_position()`
-
-pub mod consumer;
+pub mod core;
 pub mod position;
 
-pub use consumer::{Consumer, ConsumerConfig, MessageHandler};
+pub use core::{Consumer, ConsumerConfig, MessageHandler};
 pub use position::PositionTracker;
