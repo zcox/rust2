@@ -39,6 +39,12 @@ pub fn configure_routes(
         .and(agent_filter)
         .and_then(handlers::send_message_handler);
 
-    // Combine routes
-    get_thread.or(post_message)
+    // Configure CORS to allow requests from browser clients
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_methods(vec!["GET", "POST", "OPTIONS"])
+        .allow_headers(vec!["Content-Type", "Accept"]);
+
+    // Combine routes and apply CORS
+    get_thread.or(post_message).with(cors)
 }
