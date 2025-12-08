@@ -130,7 +130,10 @@ impl MessageDbClient {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn get_category_messages(&self, options: CategoryReadOptions) -> Result<Vec<Message>> {
+    pub async fn get_category_messages(
+        &self,
+        options: CategoryReadOptions,
+    ) -> Result<Vec<Message>> {
         operations::get_category_messages(&self.pool, &self.schema_name, options).await
     }
 
@@ -157,7 +160,13 @@ impl MessageDbClient {
         stream_name: &str,
         message_type: Option<&str>,
     ) -> Result<Option<Message>> {
-        operations::get_last_stream_message(&self.pool, &self.schema_name, stream_name, message_type).await
+        operations::get_last_stream_message(
+            &self.pool,
+            &self.schema_name,
+            stream_name,
+            message_type,
+        )
+        .await
     }
 
     /// Get the current version (position of last message) of a stream

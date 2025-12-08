@@ -1,3 +1,5 @@
+use rust2::message_db::types::WriteMessage;
+use rust2::message_db::StreamReadOptions;
 /// Example: Optimistic Concurrency Control
 ///
 /// This example demonstrates Message DB's optimistic concurrency control using
@@ -11,10 +13,7 @@
 /// To run this example:
 /// 1. Start Message DB: docker-compose up -d
 /// 2. Run: cargo run --example optimistic_concurrency
-
-use rust2::message_db::{MessageDbClient, MessageDbConfig, Error};
-use rust2::message_db::StreamReadOptions;
-use rust2::message_db::types::WriteMessage;
+use rust2::message_db::{Error, MessageDbClient, MessageDbConfig};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -24,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to Message DB
     let config = MessageDbConfig::from_connection_string(
-        "postgresql://postgres:message_store_password@localhost:5433/message_store"
+        "postgresql://postgres:message_store_password@localhost:5433/message_store",
     )?;
     let client = MessageDbClient::new(config).await?;
 
@@ -35,11 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account_id = Uuid::new_v4().to_string();
     let stream_name = format!("account-{}", account_id);
 
-    let event = WriteMessage::new(
-        Uuid::new_v4(),
-        &stream_name,
-        "AccountOpened"
-    ).with_data(json!({ "initial_balance": 1000 }));
+    let event = WriteMessage::new(Uuid::new_v4(), &stream_name, "AccountOpened")
+        .with_data(json!({ "initial_balance": 1000 }));
 
     client.write_message(event).await?;
     println!("✓ Created account with stream: {}", stream_name);
@@ -55,18 +51,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_version = version.expect("Stream should exist");
     println!("Current version: {}", current_version);
 
-    let event = WriteMessage::new(
-        Uuid::new_v4(),
-        &stream_name,
-        "Deposited"
-    )
-    .with_data(json!({ "amount": 500 }))
-    .with_expected_version(current_version);
+    let event = WriteMessage::new(Uuid::new_v4(), &stream_name, "Deposited")
+        .with_data(json!({ "amount": 500 }))
+        .with_expected_version(current_version);
 
     match client.write_message(event).await {
         Ok(position) => {
             println!("✓ Write succeeded at position {}", position);
-            println!("  Expected version {} matched actual version\n", current_version);
+            println!(
+                "  Expected version {} matched actual version\n",
+                current_version
+            );
         }
         Err(e) => {
             println!("✗ Write failed: {}", e);
@@ -80,19 +75,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wrong_version = 99; // Intentionally wrong
     println!("Attempting write with expected_version: {}", wrong_version);
 
-    let event = WriteMessage::new(
-        Uuid::new_v4(),
-        &stream_name,
-        "Withdrawn"
-    )
-    .with_data(json!({ "amount": 100 }))
-    .with_expected_version(wrong_version);
+    let event = WriteMessage::new(Uuid::new_v4(), &stream_name, "Withdrawn")
+        .with_data(json!({ "amount": 100 }))
+        .with_expected_version(wrong_version);
 
     match client.write_message(event).await {
         Ok(position) => {
             println!("✗ Unexpected success at position {}", position);
         }
-        Err(Error::ConcurrencyError { stream_name: err_stream, expected_version, actual_version }) => {
+        Err(Error::ConcurrencyError {
+            stream_name: err_stream,
+            expected_version,
+            actual_version,
+        }) => {
             println!("✓ Correctly rejected due to version mismatch");
             println!("  Stream: {}", err_stream);
             println!("  Expected: {}", expected_version);
@@ -148,19 +143,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Get current version
-            let current_version = client.stream_version(stream_name).await?
+            let current_version = client
+                .stream_version(stream_name)
+                .await?
                 .expect("Stream should exist");
 
             println!("    Current version: {}", current_version);
 
             // Try to write with expected version
-            let event = WriteMessage::new(
-                Uuid::new_v4(),
-                stream_name,
-                "Withdrawn"
-            )
-            .with_data(json!({ "amount": amount }))
-            .with_expected_version(current_version);
+            let event = WriteMessage::new(Uuid::new_v4(), stream_name, "Withdrawn")
+                .with_data(json!({ "amount": amount }))
+                .with_expected_version(current_version);
 
             match client.write_message(event).await {
                 Ok(position) => {
@@ -219,7 +212,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = StreamReadOptions::new(&stream_name);
     let messages = client.get_stream_messages(options).await?;
 
-    println!("Stream '{}' contains {} events:", stream_name, messages.len());
+    println!(
+        "Stream '{}' contains {} events:",
+        stream_name,
+        messages.len()
+    );
     for msg in &messages {
         println!("  Position {}: {}", msg.position, msg.message_type);
         if let Some(amount) = msg.data.get("amount") {

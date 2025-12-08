@@ -61,7 +61,7 @@ pub async fn get_thread_handler(
                         .join(" ");
 
                     Message {
-                        id: message_id,
+                        message_id,
                         message_type: MessageType::User,
                         timestamp,
                         content: MessageContent::User { text },
@@ -80,18 +80,18 @@ pub async fn get_thread_handler(
                         .collect::<Vec<_>>()
                         .join(" ");
 
-                    // Check if there are tool uses
-                    let has_tool_uses = llm_msg
+                    // Check if there are tool calls
+                    let has_tool_calls = llm_msg
                         .content
                         .iter()
-                        .any(|block| matches!(block, ContentBlock::ToolUse { .. }));
+                        .any(|block| matches!(block, ContentBlock::ToolCall { .. }));
 
-                    if has_tool_uses {
-                        // If there are tool uses, we'll create multiple messages
+                    if has_tool_calls {
+                        // If there are tool calls, we'll create multiple messages
                         // For simplicity, just return the text part for now
-                        // TODO: Properly expand tool uses into separate ToolCall messages
+                        // TODO: Properly expand tool calls into separate ToolCall messages
                         Message {
-                            id: message_id,
+                            message_id,
                             message_type: MessageType::Agent,
                             timestamp,
                             content: MessageContent::Agent {
@@ -104,7 +104,7 @@ pub async fn get_thread_handler(
                         }
                     } else {
                         Message {
-                            id: message_id,
+                            message_id,
                             message_type: MessageType::Agent,
                             timestamp,
                             content: MessageContent::Agent { text },
@@ -114,18 +114,18 @@ pub async fn get_thread_handler(
                 MessageRole::Tool => {
                     // Extract tool result
                     if let Some(ContentBlock::ToolResult {
-                        tool_use_id,
+                        tool_call_id,
                         content,
                         is_error,
                     }) = llm_msg.content.first()
                     {
                         if *is_error {
                             Message {
-                                id: message_id,
-                                message_type: MessageType::ToolResponse,
+                                message_id,
+                                message_type: MessageType::ToolResult,
                                 timestamp,
-                                content: MessageContent::ToolResponse {
-                                    tool_call_id: tool_use_id.clone(),
+                                content: MessageContent::ToolResult {
+                                    tool_call_id: tool_call_id.clone(),
                                     result: serde_json::json!({
                                         "error": content
                                     }),
@@ -133,16 +133,15 @@ pub async fn get_thread_handler(
                             }
                         } else {
                             // Try to parse content as JSON, or wrap as string
-                            let result = serde_json::from_str(content).unwrap_or_else(|_| {
-                                serde_json::json!({ "result": content })
-                            });
+                            let result = serde_json::from_str(content)
+                                .unwrap_or_else(|_| serde_json::json!({ "result": content }));
 
                             Message {
-                                id: message_id,
-                                message_type: MessageType::ToolResponse,
+                                message_id,
+                                message_type: MessageType::ToolResult,
                                 timestamp,
-                                content: MessageContent::ToolResponse {
-                                    tool_call_id: tool_use_id.clone(),
+                                content: MessageContent::ToolResult {
+                                    tool_call_id: tool_call_id.clone(),
                                     result,
                                 },
                             }
@@ -150,7 +149,7 @@ pub async fn get_thread_handler(
                     } else {
                         // Shouldn't happen, but provide fallback
                         Message {
-                            id: message_id,
+                            message_id,
                             message_type: MessageType::Agent,
                             timestamp,
                             content: MessageContent::Agent {

@@ -14,7 +14,7 @@ use rust2::llm::core::{
     provider::LlmProvider,
     types::{
         ContentBlockStart, ContentDelta, FinishReason, GenerateRequest, MessageMetadata,
-        MessageRole, PartialToolUse, StreamEvent, UsageMetadata,
+        MessageRole, PartialToolCall, StreamEvent, UsageMetadata,
     },
 };
 use rust2::llm::tools::executor::ToolExecutor;
@@ -48,16 +48,14 @@ impl MockLlmProvider {
         let events = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_test".to_string(),
+                    message_id: "msg_test".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
             },
             StreamEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockStart::Text {
-                    text: text.clone(),
-                },
+                block: ContentBlockStart::Text { text: text.clone() },
             },
             StreamEvent::MessageEnd {
                 finish_reason: FinishReason::EndTurn,
@@ -84,7 +82,7 @@ impl MockLlmProvider {
                 vec![
                     StreamEvent::MessageStart {
                         message: MessageMetadata {
-                            id: "msg_test".to_string(),
+                            message_id: "msg_test".to_string(),
                             role: MessageRole::Assistant,
                             usage: None,
                         },
@@ -116,7 +114,7 @@ impl MockLlmProvider {
         let mut events = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_streaming".to_string(),
+                    message_id: "msg_streaming".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
@@ -166,23 +164,23 @@ impl MockLlmProvider {
         let first_response = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_tool_use".to_string(),
+                    message_id: "msg_tool_use".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
             },
             StreamEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockStart::ToolUse {
-                    id: tool_id.clone(),
+                block: ContentBlockStart::ToolCall {
+                    tool_call_id: tool_id.clone(),
                     name: tool_name.clone(),
                 },
             },
             StreamEvent::ContentDelta {
                 index: 0,
-                delta: ContentDelta::ToolUseDelta {
-                    partial: PartialToolUse {
-                        id: Some(tool_id.clone()),
+                delta: ContentDelta::ToolCallDelta {
+                    partial: PartialToolCall {
+                        tool_call_id: Some(tool_id.clone()),
                         name: Some(tool_name.clone()),
                         partial_json: input_json,
                     },
@@ -204,7 +202,7 @@ impl MockLlmProvider {
         let second_response = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_after_tool".to_string(),
+                    message_id: "msg_after_tool".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
@@ -252,15 +250,11 @@ impl LlmProvider for MockLlmProvider {
         *count += 1;
 
         if index >= self.responses.len() {
-            return Err(LlmError::StreamError(
-                "Mock LLM provider error".to_string(),
-            ));
+            return Err(LlmError::StreamError("Mock LLM provider error".to_string()));
         }
 
         let events = self.responses[index].clone();
-        Ok(Box::pin(futures::stream::iter(
-            events.into_iter().map(Ok),
-        )))
+        Ok(Box::pin(futures::stream::iter(events.into_iter().map(Ok))))
     }
 
     fn provider_name(&self) -> &str {
@@ -313,10 +307,7 @@ impl Drop for TestServer {
 }
 
 /// Start a test server on a random available port
-async fn start_test_server(
-    agent: Arc<EventSourcedAgent>,
-    store: Arc<ThreadStore>,
-) -> TestServer {
+async fn start_test_server(agent: Arc<EventSourcedAgent>, store: Arc<ThreadStore>) -> TestServer {
     // Find an available port
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
     let addr = listener.local_addr().expect("Failed to get local address");
@@ -511,7 +502,10 @@ async fn test_e2e_post_then_get() {
         .read_thread_events(&thread_id.to_string())
         .await
         .expect("Failed to read events");
-    assert!(!events.is_empty(), "Events should be persisted in MessageDB");
+    assert!(
+        !events.is_empty(),
+        "Events should be persisted in MessageDB"
+    );
 }
 
 #[tokio::test]
@@ -611,9 +605,21 @@ async fn test_e2e_concurrent_threads() {
         .unwrap();
 
     // Each thread should have at least user and agent messages
-    assert!(thread_1.messages.len() >= 2, "Thread 1 should have at least 2 messages, got {}", thread_1.messages.len());
-    assert!(thread_2.messages.len() >= 2, "Thread 2 should have at least 2 messages, got {}", thread_2.messages.len());
-    assert!(thread_3.messages.len() >= 2, "Thread 3 should have at least 2 messages, got {}", thread_3.messages.len());
+    assert!(
+        thread_1.messages.len() >= 2,
+        "Thread 1 should have at least 2 messages, got {}",
+        thread_1.messages.len()
+    );
+    assert!(
+        thread_2.messages.len() >= 2,
+        "Thread 2 should have at least 2 messages, got {}",
+        thread_2.messages.len()
+    );
+    assert!(
+        thread_3.messages.len() >= 2,
+        "Thread 3 should have at least 2 messages, got {}",
+        thread_3.messages.len()
+    );
 
     // No cross-contamination
     assert_eq!(thread_1.thread_id, thread_id_1);
@@ -680,7 +686,11 @@ async fn test_e2e_multi_turn_conversation() {
         .await
         .expect("JSON parse failed");
 
-    assert!(thread.messages.len() >= 6, "Expected at least 6 messages, got {}", thread.messages.len());
+    assert!(
+        thread.messages.len() >= 6,
+        "Expected at least 6 messages, got {}",
+        thread.messages.len()
+    );
 
     // Verify alternating pattern
     assert_eq!(thread.messages[0].message_type, MessageType::User);
@@ -788,10 +798,7 @@ async fn test_e2e_error_recovery() {
     let has_user_message = events
         .iter()
         .any(|e| matches!(e, ThreadEvent::UserMessageReceived(_)));
-    assert!(
-        has_user_message,
-        "Should have UserMessageReceived event"
-    );
+    assert!(has_user_message, "Should have UserMessageReceived event");
 
     // Note: Currently, when LLM provider fails during stream_generate(),
     // AgentFailed event is NOT written (it just returns error).

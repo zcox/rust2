@@ -97,9 +97,9 @@ impl MessageDbConfig {
         let host_port: Vec<&str> = location_parts[0].split(':').collect();
         let host = host_port[0].to_string();
         let port = if host_port.len() > 1 {
-            host_port[1].parse::<u16>().map_err(|_| {
-                Error::ValidationError("Invalid port number".to_string())
-            })?
+            host_port[1]
+                .parse::<u16>()
+                .map_err(|_| Error::ValidationError("Invalid port number".to_string()))?
         } else {
             5432
         };

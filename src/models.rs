@@ -11,7 +11,7 @@ pub enum MessageType {
     User,
     Agent,
     ToolCall,
-    ToolResponse,
+    ToolResult,
 }
 
 // Message Content Variants
@@ -28,7 +28,7 @@ pub enum MessageContent {
         tool_name: String,
         arguments: serde_json::Value,
     },
-    ToolResponse {
+    ToolResult {
         tool_call_id: String,
         result: serde_json::Value,
     },
@@ -37,7 +37,7 @@ pub enum MessageContent {
 // Message Struct
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Message {
-    pub id: String,
+    pub message_id: String,
     pub message_type: MessageType,
     pub timestamp: DateTime<Utc>,
     pub content: MessageContent,
@@ -60,22 +60,23 @@ pub struct SendMessageRequest {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct AgentTextChunk {
-    pub id: String,
+    pub thread_id: String,
+    pub message_id: String,
     pub chunk: String,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolCallEvent {
-    pub id: String,
+    pub tool_call_id: String,
     pub tool_name: String,
     pub arguments: serde_json::Value,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
-pub struct ToolResponseEvent {
-    pub id: String,
+pub struct ToolResultEvent {
+    pub tool_result_id: String,
     pub tool_call_id: String,
     pub result: serde_json::Value,
 }
@@ -99,9 +100,9 @@ mod tests {
         let serialized = serde_json::to_string(&msg_type).unwrap();
         assert_eq!(serialized, r#""toolcall""#);
 
-        let msg_type = MessageType::ToolResponse;
+        let msg_type = MessageType::ToolResult;
         let serialized = serde_json::to_string(&msg_type).unwrap();
-        assert_eq!(serialized, r#""toolresponse""#);
+        assert_eq!(serialized, r#""toolresult""#);
     }
 
     #[test]
@@ -115,8 +116,8 @@ mod tests {
         let deserialized: MessageType = serde_json::from_str(r#""toolcall""#).unwrap();
         assert_eq!(deserialized, MessageType::ToolCall);
 
-        let deserialized: MessageType = serde_json::from_str(r#""toolresponse""#).unwrap();
-        assert_eq!(deserialized, MessageType::ToolResponse);
+        let deserialized: MessageType = serde_json::from_str(r#""toolresult""#).unwrap();
+        assert_eq!(deserialized, MessageType::ToolResult);
     }
 
     #[test]
@@ -155,14 +156,14 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_response_content_serialization() {
-        let content = MessageContent::ToolResponse {
+    fn test_tool_result_content_serialization() {
+        let content = MessageContent::ToolResult {
             tool_call_id: "call_123".to_string(),
             result: json!({"result": 3}),
         };
         let serialized = serde_json::to_string(&content).unwrap();
         let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(value["type"], "tool_response");
+        assert_eq!(value["type"], "tool_result");
         assert_eq!(value["tool_call_id"], "call_123");
         assert_eq!(value["result"]["result"], 3);
     }
@@ -171,7 +172,7 @@ mod tests {
     fn test_message_serialization() {
         let timestamp = Utc::now();
         let message = Message {
-            id: "msg_123".to_string(),
+            message_id: "msg_123".to_string(),
             message_type: MessageType::User,
             timestamp,
             content: MessageContent::User {
@@ -188,7 +189,7 @@ mod tests {
         let thread_id = Uuid::new_v4();
         let timestamp = Utc::now();
         let messages = vec![Message {
-            id: "msg_1".to_string(),
+            message_id: "msg_1".to_string(),
             message_type: MessageType::User,
             timestamp,
             content: MessageContent::User {
@@ -215,38 +216,40 @@ mod tests {
     #[test]
     fn test_agent_text_chunk_serialization() {
         let chunk = AgentTextChunk {
-            id: "chunk_1".to_string(),
+            thread_id: "thread_1".to_string(),
+            message_id: "msg_1".to_string(),
             chunk: "Hello".to_string(),
         };
         let serialized = serde_json::to_string(&chunk).unwrap();
         let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(value["id"], "chunk_1");
+        assert_eq!(value["thread_id"], "thread_1");
+        assert_eq!(value["message_id"], "msg_1");
         assert_eq!(value["chunk"], "Hello");
     }
 
     #[test]
     fn test_tool_call_event_serialization() {
         let event = ToolCallEvent {
-            id: "call_1".to_string(),
+            tool_call_id: "call_1".to_string(),
             tool_name: "calculator".to_string(),
             arguments: json!({"a": 1, "b": 2}),
         };
         let serialized = serde_json::to_string(&event).unwrap();
         let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(value["id"], "call_1");
+        assert_eq!(value["tool_call_id"], "call_1");
         assert_eq!(value["tool_name"], "calculator");
     }
 
     #[test]
-    fn test_tool_response_event_serialization() {
-        let event = ToolResponseEvent {
-            id: "response_1".to_string(),
+    fn test_tool_result_event_serialization() {
+        let event = ToolResultEvent {
+            tool_result_id: "result_1".to_string(),
             tool_call_id: "call_1".to_string(),
             result: json!({"result": 3}),
         };
         let serialized = serde_json::to_string(&event).unwrap();
         let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(value["id"], "response_1");
+        assert_eq!(value["tool_result_id"], "result_1");
         assert_eq!(value["tool_call_id"], "call_1");
     }
 }

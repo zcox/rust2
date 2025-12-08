@@ -13,9 +13,9 @@
 use super::events::{
     AgentCompletedData, AgentEvent, AgentFailedData, AgentIterationCompletedData,
     AgentIterationStartedData, ContentBlockData, LlmCallStartedData, LlmContentDeltaData,
-    LlmResponseCompletedData, LlmToolUseCompletedData, LlmToolUseDeltaData,
-    LlmToolUseStartedData, ThreadEvent, ToolExecutionCompletedData, ToolExecutionFailedData,
-    ToolExecutionStartedData, UserMessageReceivedData,
+    LlmResponseCompletedData, LlmToolUseCompletedData, LlmToolUseDeltaData, LlmToolUseStartedData,
+    ThreadEvent, ToolExecutionCompletedData, ToolExecutionFailedData, ToolExecutionStartedData,
+    UserMessageReceivedData,
 };
 use super::projection::project_events_to_messages;
 use super::store::ThreadStore;
@@ -188,8 +188,16 @@ impl EventSourcedAgent {
                 timestamp: now,
             });
 
-            if let Err(e) = store.append_event(&thread_id, user_event.clone(), None, None).await {
-                let _ = tx.send(Err(AgentError::Store(format!("Failed to append user message: {}", e)))).await;
+            if let Err(e) = store
+                .append_event(&thread_id, user_event.clone(), None, None)
+                .await
+            {
+                let _ = tx
+                    .send(Err(AgentError::Store(format!(
+                        "Failed to append user message: {}",
+                        e
+                    ))))
+                    .await;
                 return;
             }
 
@@ -202,7 +210,12 @@ impl EventSourcedAgent {
             let events = match store.read_thread_events(&thread_id).await {
                 Ok(e) => e,
                 Err(e) => {
-                    let _ = tx.send(Err(AgentError::Store(format!("Failed to read thread events: {}", e)))).await;
+                    let _ = tx
+                        .send(Err(AgentError::Store(format!(
+                            "Failed to read thread events: {}",
+                            e
+                        ))))
+                        .await;
                     return;
                 }
             };
@@ -224,19 +237,32 @@ impl EventSourcedAgent {
                         timestamp: Utc::now(),
                     });
 
-                    let _ = store.append_event(&thread_id, failed_event, None, None).await;
-                    let _ = tx.send(Err(AgentError::MaxIterationsReached(iteration - 1))).await;
+                    let _ = store
+                        .append_event(&thread_id, failed_event, None, None)
+                        .await;
+                    let _ = tx
+                        .send(Err(AgentError::MaxIterationsReached(iteration - 1)))
+                        .await;
                     return;
                 }
 
                 // Emit iteration started event
-                let iteration_event = ThreadEvent::AgentIterationStarted(AgentIterationStartedData {
-                    iteration,
-                    timestamp: Utc::now(),
-                });
+                let iteration_event =
+                    ThreadEvent::AgentIterationStarted(AgentIterationStartedData {
+                        iteration,
+                        timestamp: Utc::now(),
+                    });
 
-                if let Err(e) = store.append_event(&thread_id, iteration_event.clone(), None, None).await {
-                    let _ = tx.send(Err(AgentError::Store(format!("Failed to append iteration event: {}", e)))).await;
+                if let Err(e) = store
+                    .append_event(&thread_id, iteration_event.clone(), None, None)
+                    .await
+                {
+                    let _ = tx
+                        .send(Err(AgentError::Store(format!(
+                            "Failed to append iteration event: {}",
+                            e
+                        ))))
+                        .await;
                     return;
                 }
 
@@ -260,7 +286,9 @@ impl EventSourcedAgent {
                     timestamp: Utc::now(),
                 });
 
-                let _ = store.append_event(&thread_id, llm_call_event, None, None).await;
+                let _ = store
+                    .append_event(&thread_id, llm_call_event, None, None)
+                    .await;
 
                 // Call LLM and get stream
                 let llm_stream = match provider.stream_generate(request).await {
@@ -298,33 +326,39 @@ impl EventSourcedAgent {
                                     text_content.push_str(text);
 
                                     // Emit text delta as ThreadEvent
-                                    let delta_event = ThreadEvent::LlmContentDelta(LlmContentDeltaData {
-                                        content_block_index: *index,
-                                        delta_type: "text".to_string(),
-                                        text: text.clone(),
-                                        timestamp: Utc::now(),
-                                    });
+                                    let delta_event =
+                                        ThreadEvent::LlmContentDelta(LlmContentDeltaData {
+                                            content_block_index: *index,
+                                            delta_type: "text".to_string(),
+                                            text: text.clone(),
+                                            timestamp: Utc::now(),
+                                        });
 
-                                    let _ = store.append_event(&thread_id, delta_event.clone(), None, None).await;
+                                    let _ = store
+                                        .append_event(&thread_id, delta_event.clone(), None, None)
+                                        .await;
 
                                     // Convert to AgentEvent and emit
                                     if let Ok(agent_event) = AgentEvent::try_from(delta_event) {
                                         let _ = tx.send(Ok(agent_event)).await;
                                     }
                                 }
-                                ContentBlockStart::ToolUse { id, name } => {
+                                ContentBlockStart::ToolCall { tool_call_id, name } => {
                                     // Record tool use started
-                                    let tool_started_event = ThreadEvent::LlmToolUseStarted(LlmToolUseStartedData {
-                                        tool_use_id: id.clone(),
-                                        content_block_index: *index,
-                                        name: name.clone(),
-                                        timestamp: Utc::now(),
-                                    });
+                                    let tool_started_event =
+                                        ThreadEvent::LlmToolUseStarted(LlmToolUseStartedData {
+                                            tool_use_id: tool_call_id.clone(),
+                                            content_block_index: *index,
+                                            name: name.clone(),
+                                            timestamp: Utc::now(),
+                                        });
 
-                                    let _ = store.append_event(&thread_id, tool_started_event, None, None).await;
+                                    let _ = store
+                                        .append_event(&thread_id, tool_started_event, None, None)
+                                        .await;
 
                                     current_tool_use = Some(PartialToolUseAccumulator {
-                                        id: id.clone(),
+                                        id: tool_call_id.clone(),
                                         name: name.clone(),
                                         input: String::new(),
                                     });
@@ -337,32 +371,38 @@ impl EventSourcedAgent {
                                     text_content.push_str(text);
 
                                     // Emit text delta as ThreadEvent
-                                    let delta_event = ThreadEvent::LlmContentDelta(LlmContentDeltaData {
-                                        content_block_index: current_content_block_index,
-                                        delta_type: "text".to_string(),
-                                        text: text.clone(),
-                                        timestamp: Utc::now(),
-                                    });
+                                    let delta_event =
+                                        ThreadEvent::LlmContentDelta(LlmContentDeltaData {
+                                            content_block_index: current_content_block_index,
+                                            delta_type: "text".to_string(),
+                                            text: text.clone(),
+                                            timestamp: Utc::now(),
+                                        });
 
-                                    let _ = store.append_event(&thread_id, delta_event.clone(), None, None).await;
+                                    let _ = store
+                                        .append_event(&thread_id, delta_event.clone(), None, None)
+                                        .await;
 
                                     // Convert to AgentEvent and emit
                                     if let Ok(agent_event) = AgentEvent::try_from(delta_event) {
                                         let _ = tx.send(Ok(agent_event)).await;
                                     }
                                 }
-                                ContentDelta::ToolUseDelta { partial } => {
+                                ContentDelta::ToolCallDelta { partial } => {
                                     if let Some(tool_use) = &mut current_tool_use {
                                         tool_use.input.push_str(&partial.partial_json);
 
                                         // Record tool use delta
-                                        let tool_delta_event = ThreadEvent::LlmToolUseDelta(LlmToolUseDeltaData {
-                                            tool_use_id: tool_use.id.clone(),
-                                            partial_json: partial.partial_json.clone(),
-                                            timestamp: Utc::now(),
-                                        });
+                                        let tool_delta_event =
+                                            ThreadEvent::LlmToolUseDelta(LlmToolUseDeltaData {
+                                                tool_use_id: tool_use.id.clone(),
+                                                partial_json: partial.partial_json.clone(),
+                                                timestamp: Utc::now(),
+                                            });
 
-                                        let _ = store.append_event(&thread_id, tool_delta_event, None, None).await;
+                                        let _ = store
+                                            .append_event(&thread_id, tool_delta_event, None, None)
+                                            .await;
                                     }
                                 }
                             }
@@ -373,17 +413,26 @@ impl EventSourcedAgent {
                                 match serde_json::from_str::<serde_json::Value>(&tool_use.input) {
                                     Ok(input) => {
                                         // Record tool use completed
-                                        let tool_completed_event = ThreadEvent::LlmToolUseCompleted(LlmToolUseCompletedData {
-                                            tool_use_id: tool_use.id.clone(),
-                                            name: tool_use.name.clone(),
-                                            input: input.clone(),
-                                            timestamp: Utc::now(),
-                                        });
+                                        let tool_completed_event = ThreadEvent::LlmToolUseCompleted(
+                                            LlmToolUseCompletedData {
+                                                tool_use_id: tool_use.id.clone(),
+                                                name: tool_use.name.clone(),
+                                                input: input.clone(),
+                                                timestamp: Utc::now(),
+                                            },
+                                        );
 
-                                        let _ = store.append_event(&thread_id, tool_completed_event, None, None).await;
+                                        let _ = store
+                                            .append_event(
+                                                &thread_id,
+                                                tool_completed_event,
+                                                None,
+                                                None,
+                                            )
+                                            .await;
 
-                                        tool_uses.push(ContentBlock::ToolUse {
-                                            id: tool_use.id.clone(),
+                                        tool_uses.push(ContentBlock::ToolCall {
+                                            tool_call_id: tool_use.id.clone(),
                                             name: tool_use.name.clone(),
                                             input: input.clone(),
                                         });
@@ -401,22 +450,31 @@ impl EventSourcedAgent {
                                 }
                             }
                         }
-                        StreamEvent::MessageEnd { finish_reason, usage: _ } => {
+                        StreamEvent::MessageEnd {
+                            finish_reason,
+                            usage: _,
+                        } => {
                             // Build content blocks data for the response completed event
                             if !text_content.is_empty() {
-                                content_blocks_data.insert(0, ContentBlockData::Text {
-                                    text: text_content.clone(),
-                                });
+                                content_blocks_data.insert(
+                                    0,
+                                    ContentBlockData::Text {
+                                        text: text_content.clone(),
+                                    },
+                                );
                             }
 
                             // Record LLM response completed
-                            let response_event = ThreadEvent::LlmResponseCompleted(LlmResponseCompletedData {
-                                stop_reason: format!("{:?}", finish_reason),
-                                content_blocks: content_blocks_data.clone(),
-                                timestamp: Utc::now(),
-                            });
+                            let response_event =
+                                ThreadEvent::LlmResponseCompleted(LlmResponseCompletedData {
+                                    stop_reason: format!("{:?}", finish_reason),
+                                    content_blocks: content_blocks_data.clone(),
+                                    timestamp: Utc::now(),
+                                });
 
-                            let _ = store.append_event(&thread_id, response_event, None, None).await;
+                            let _ = store
+                                .append_event(&thread_id, response_event, None, None)
+                                .await;
                             break;
                         }
                         _ => {}
@@ -428,7 +486,9 @@ impl EventSourcedAgent {
                     // Build final assistant message with text only
                     let mut assistant_content = Vec::new();
                     if !text_content.is_empty() {
-                        assistant_content.push(ContentBlock::Text { text: text_content.clone() });
+                        assistant_content.push(ContentBlock::Text {
+                            text: text_content.clone(),
+                        });
                     }
 
                     // Add to messages
@@ -438,13 +498,16 @@ impl EventSourcedAgent {
                     });
 
                     // Record iteration completed
-                    let iteration_completed_event = ThreadEvent::AgentIterationCompleted(AgentIterationCompletedData {
-                        iteration,
-                        has_tool_uses: false,
-                        timestamp: Utc::now(),
-                    });
+                    let iteration_completed_event =
+                        ThreadEvent::AgentIterationCompleted(AgentIterationCompletedData {
+                            iteration,
+                            has_tool_uses: false,
+                            timestamp: Utc::now(),
+                        });
 
-                    let _ = store.append_event(&thread_id, iteration_completed_event, None, None).await;
+                    let _ = store
+                        .append_event(&thread_id, iteration_completed_event, None, None)
+                        .await;
 
                     // Record agent completed
                     let completed_event = ThreadEvent::AgentCompleted(AgentCompletedData {
@@ -453,7 +516,9 @@ impl EventSourcedAgent {
                         timestamp: Utc::now(),
                     });
 
-                    let _ = store.append_event(&thread_id, completed_event.clone(), None, None).await;
+                    let _ = store
+                        .append_event(&thread_id, completed_event.clone(), None, None)
+                        .await;
 
                     // Emit completed event
                     if let Ok(agent_event) = AgentEvent::try_from(completed_event) {
@@ -478,16 +543,24 @@ impl EventSourcedAgent {
 
                 // Execute tools and add results to history
                 for block in &tool_uses {
-                    if let ContentBlock::ToolUse { id, name, input } = block {
+                    if let ContentBlock::ToolCall {
+                        tool_call_id,
+                        name,
+                        input,
+                    } = block
+                    {
                         // Record tool execution started
-                        let tool_exec_started_event = ThreadEvent::ToolExecutionStarted(ToolExecutionStartedData {
-                            tool_use_id: id.clone(),
-                            name: name.clone(),
-                            input: input.clone(),
-                            timestamp: Utc::now(),
-                        });
+                        let tool_exec_started_event =
+                            ThreadEvent::ToolExecutionStarted(ToolExecutionStartedData {
+                                tool_use_id: tool_call_id.clone(),
+                                name: name.clone(),
+                                input: input.clone(),
+                                timestamp: Utc::now(),
+                            });
 
-                        let _ = store.append_event(&thread_id, tool_exec_started_event.clone(), None, None).await;
+                        let _ = store
+                            .append_event(&thread_id, tool_exec_started_event.clone(), None, None)
+                            .await;
 
                         // Emit tool execution started
                         if let Ok(agent_event) = AgentEvent::try_from(tool_exec_started_event) {
@@ -495,57 +568,84 @@ impl EventSourcedAgent {
                         }
 
                         // Execute the tool
-                        match tool_executor.execute(id.clone(), name.clone(), input.clone()).await {
+                        match tool_executor
+                            .execute(tool_call_id.clone(), name.clone(), input.clone())
+                            .await
+                        {
                             Ok(result) => {
                                 // Record tool execution completed
-                                let tool_exec_completed_event = ThreadEvent::ToolExecutionCompleted(ToolExecutionCompletedData {
-                                    tool_use_id: id.clone(),
-                                    name: name.clone(),
-                                    result: result.clone(),
-                                    timestamp: Utc::now(),
-                                });
+                                let tool_exec_completed_event = ThreadEvent::ToolExecutionCompleted(
+                                    ToolExecutionCompletedData {
+                                        tool_use_id: tool_call_id.clone(),
+                                        name: name.clone(),
+                                        result: result.clone(),
+                                        timestamp: Utc::now(),
+                                    },
+                                );
 
-                                let _ = store.append_event(&thread_id, tool_exec_completed_event.clone(), None, None).await;
+                                let _ = store
+                                    .append_event(
+                                        &thread_id,
+                                        tool_exec_completed_event.clone(),
+                                        None,
+                                        None,
+                                    )
+                                    .await;
 
                                 // Emit tool execution completed
-                                if let Ok(agent_event) = AgentEvent::try_from(tool_exec_completed_event) {
+                                if let Ok(agent_event) =
+                                    AgentEvent::try_from(tool_exec_completed_event)
+                                {
                                     let _ = tx.send(Ok(agent_event)).await;
                                 }
 
                                 // Add tool result to messages
-                                messages.push(Message::tool_result(id.clone(), result));
+                                messages.push(Message::tool_result(tool_call_id.clone(), result));
                             }
                             Err(error) => {
                                 // Record tool execution failed
-                                let tool_exec_failed_event = ThreadEvent::ToolExecutionFailed(ToolExecutionFailedData {
-                                    tool_use_id: id.clone(),
-                                    name: name.clone(),
-                                    error: error.clone(),
-                                    timestamp: Utc::now(),
-                                });
+                                let tool_exec_failed_event =
+                                    ThreadEvent::ToolExecutionFailed(ToolExecutionFailedData {
+                                        tool_use_id: tool_call_id.clone(),
+                                        name: name.clone(),
+                                        error: error.clone(),
+                                        timestamp: Utc::now(),
+                                    });
 
-                                let _ = store.append_event(&thread_id, tool_exec_failed_event.clone(), None, None).await;
+                                let _ = store
+                                    .append_event(
+                                        &thread_id,
+                                        tool_exec_failed_event.clone(),
+                                        None,
+                                        None,
+                                    )
+                                    .await;
 
                                 // Emit tool execution failed
-                                if let Ok(agent_event) = AgentEvent::try_from(tool_exec_failed_event) {
+                                if let Ok(agent_event) =
+                                    AgentEvent::try_from(tool_exec_failed_event)
+                                {
                                     let _ = tx.send(Ok(agent_event)).await;
                                 }
 
                                 // Add tool error to messages
-                                messages.push(Message::tool_error(id.clone(), error));
+                                messages.push(Message::tool_error(tool_call_id.clone(), error));
                             }
                         }
                     }
                 }
 
                 // Record iteration completed
-                let iteration_completed_event = ThreadEvent::AgentIterationCompleted(AgentIterationCompletedData {
-                    iteration,
-                    has_tool_uses: true,
-                    timestamp: Utc::now(),
-                });
+                let iteration_completed_event =
+                    ThreadEvent::AgentIterationCompleted(AgentIterationCompletedData {
+                        iteration,
+                        has_tool_uses: true,
+                        timestamp: Utc::now(),
+                    });
 
-                let _ = store.append_event(&thread_id, iteration_completed_event, None, None).await;
+                let _ = store
+                    .append_event(&thread_id, iteration_completed_event, None, None)
+                    .await;
 
                 // Loop continues - next iteration will call LLM again
             }

@@ -24,13 +24,9 @@ async fn test_create_provider_claude() {
     let project_id = std::env::var("GCP_PROJECT_ID").expect("GCP_PROJECT_ID required");
     let location = std::env::var("GCP_LOCATION").unwrap_or_else(|_| "us-central1".to_string());
 
-    let provider = create_provider(
-        Model::Claude(ClaudeModel::Haiku45),
-        project_id,
-        location,
-    )
-    .await
-    .expect("Failed to create Claude provider");
+    let provider = create_provider(Model::Claude(ClaudeModel::Haiku45), project_id, location)
+        .await
+        .expect("Failed to create Claude provider");
 
     // Just verify we got a provider back (it implements LlmProvider)
     // Actual functionality is tested in integration tests

@@ -2,12 +2,12 @@
 
 use crate::llm::core::types::{
     ContentBlock, ContentBlockStart, ContentDelta, FinishReason, GenerateRequest, Message,
-    MessageMetadata, MessageRole, PartialToolUse, StreamEvent, ToolDeclaration, UsageMetadata,
+    MessageMetadata, MessageRole, PartialToolCall, StreamEvent, ToolDeclaration, UsageMetadata,
 };
 
 use super::types::{
-    ClaudeContent, ClaudeContentBlock, ClaudeContentBlockStart, ClaudeContentDelta,
-    ClaudeMessage, ClaudeStreamEvent, ClaudeTool, StreamRawPredictRequest,
+    ClaudeContent, ClaudeContentBlock, ClaudeContentBlockStart, ClaudeContentDelta, ClaudeMessage,
+    ClaudeStreamEvent, ClaudeTool, StreamRawPredictRequest,
 };
 
 /// Convert our abstraction request to Claude's request format
@@ -21,12 +21,9 @@ pub fn to_claude_request(request: GenerateRequest) -> StreamRawPredictRequest {
             .map(to_claude_message)
             .collect(),
         system: request.system,
-        tools: request.tools.map(|tools| {
-            tools
-                .into_iter()
-                .map(to_claude_tool)
-                .collect()
-        }),
+        tools: request
+            .tools
+            .map(|tools| tools.into_iter().map(to_claude_tool).collect()),
         temperature: request.config.temperature,
         top_p: request.config.top_p,
         stop_sequences: request.config.stop_sequences,
@@ -69,13 +66,21 @@ fn to_claude_message(message: Message) -> ClaudeMessage {
 fn to_claude_content_block(block: ContentBlock) -> ClaudeContentBlock {
     match block {
         ContentBlock::Text { text } => ClaudeContentBlock::Text { text },
-        ContentBlock::ToolUse { id, name, input } => ClaudeContentBlock::ToolUse { id, name, input },
+        ContentBlock::ToolCall {
+            tool_call_id,
+            name,
+            input,
+        } => ClaudeContentBlock::ToolUse {
+            id: tool_call_id,
+            name,
+            input,
+        },
         ContentBlock::ToolResult {
-            tool_use_id,
+            tool_call_id,
             content,
             is_error,
         } => ClaudeContentBlock::ToolResult {
-            tool_use_id,
+            tool_use_id: tool_call_id,
             content,
             is_error: if is_error { Some(true) } else { None },
         },
@@ -107,7 +112,7 @@ pub fn from_claude_event(
 
             vec![StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: message.id,
+                    message_id: message.id,
                     role: MessageRole::Assistant,
                     usage: Some(*accumulated_usage),
                 },
@@ -119,9 +124,10 @@ pub fn from_claude_event(
         } => {
             let block = match content_block {
                 ClaudeContentBlockStart::Text { text } => ContentBlockStart::Text { text },
-                ClaudeContentBlockStart::ToolUse { id, name } => {
-                    ContentBlockStart::ToolUse { id, name }
-                }
+                ClaudeContentBlockStart::ToolUse { id, name } => ContentBlockStart::ToolCall {
+                    tool_call_id: id,
+                    name,
+                },
             };
 
             vec![StreamEvent::ContentBlockStart { index, block }]
@@ -130,9 +136,9 @@ pub fn from_claude_event(
             let content_delta = match delta {
                 ClaudeContentDelta::TextDelta { text } => ContentDelta::TextDelta { text },
                 ClaudeContentDelta::InputJsonDelta { partial_json } => {
-                    ContentDelta::ToolUseDelta {
-                        partial: PartialToolUse {
-                            id: None,
+                    ContentDelta::ToolCallDelta {
+                        partial: PartialToolCall {
+                            tool_call_id: None,
                             name: None,
                             partial_json,
                         },
@@ -245,8 +251,8 @@ mod tests {
                 ContentBlock::Text {
                     text: "Let me check".to_string(),
                 },
-                ContentBlock::ToolUse {
-                    id: "tool-1".to_string(),
+                ContentBlock::ToolCall {
+                    tool_call_id: "tool-1".to_string(),
                     name: "get_weather".to_string(),
                     input: serde_json::json!({"location": "SF"}),
                 },
@@ -347,7 +353,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             StreamEvent::MessageStart { message } => {
-                assert_eq!(message.id, "msg_123");
+                assert_eq!(message.message_id, "msg_123");
                 assert_eq!(message.role, MessageRole::Assistant);
                 assert_eq!(message.usage.unwrap().input_tokens, 10);
             }

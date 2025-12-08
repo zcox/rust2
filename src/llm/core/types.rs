@@ -33,9 +33,7 @@ impl Message {
     pub fn user(text: impl Into<String>) -> Self {
         Self {
             role: MessageRole::User,
-            content: vec![ContentBlock::Text {
-                text: text.into(),
-            }],
+            content: vec![ContentBlock::Text { text: text.into() }],
         }
     }
 
@@ -43,18 +41,16 @@ impl Message {
     pub fn assistant(text: impl Into<String>) -> Self {
         Self {
             role: MessageRole::Assistant,
-            content: vec![ContentBlock::Text {
-                text: text.into(),
-            }],
+            content: vec![ContentBlock::Text { text: text.into() }],
         }
     }
 
     /// Create a new tool message with a tool result
-    pub fn tool_result(tool_use_id: impl Into<String>, content: impl Into<String>) -> Self {
+    pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: MessageRole::Tool,
             content: vec![ContentBlock::ToolResult {
-                tool_use_id: tool_use_id.into(),
+                tool_call_id: tool_call_id.into(),
                 content: content.into(),
                 is_error: false,
             }],
@@ -62,11 +58,11 @@ impl Message {
     }
 
     /// Create a new tool message with an error result
-    pub fn tool_error(tool_use_id: impl Into<String>, error: impl Into<String>) -> Self {
+    pub fn tool_error(tool_call_id: impl Into<String>, error: impl Into<String>) -> Self {
         Self {
             role: MessageRole::Tool,
             content: vec![ContentBlock::ToolResult {
-                tool_use_id: tool_use_id.into(),
+                tool_call_id: tool_call_id.into(),
                 content: error.into(),
                 is_error: true,
             }],
@@ -93,14 +89,14 @@ pub enum ContentBlock {
     /// Plain text content
     Text { text: String },
     /// Tool invocation
-    ToolUse {
-        id: String,
+    ToolCall {
+        tool_call_id: String,
         name: String,
         input: serde_json::Value,
     },
     /// Tool execution result
     ToolResult {
-        tool_use_id: String,
+        tool_call_id: String,
         content: String,
         #[serde(default)]
         is_error: bool,
@@ -123,9 +119,7 @@ pub struct ToolDeclaration {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
     /// Response begins
-    MessageStart {
-        message: MessageMetadata,
-    },
+    MessageStart { message: MessageMetadata },
     /// New content block begins
     ContentBlockStart {
         index: usize,
@@ -133,34 +127,25 @@ pub enum StreamEvent {
         block: ContentBlockStart,
     },
     /// Incremental content update
-    ContentDelta {
-        index: usize,
-        delta: ContentDelta,
-    },
+    ContentDelta { index: usize, delta: ContentDelta },
     /// Content block complete
-    ContentBlockEnd {
-        index: usize,
-    },
+    ContentBlockEnd { index: usize },
     /// Message metadata update
-    MessageDelta {
-        usage: Option<UsageMetadata>,
-    },
+    MessageDelta { usage: Option<UsageMetadata> },
     /// Response complete
     MessageEnd {
         finish_reason: FinishReason,
         usage: UsageMetadata,
     },
     /// Error occurred
-    Error {
-        error: String,
-    },
+    Error { error: String },
 }
 
 /// Metadata about a message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageMetadata {
     /// Message ID
-    pub id: String,
+    pub message_id: String,
     /// Message role
     pub role: MessageRole,
     /// Initial usage metadata (if available)
@@ -173,8 +158,8 @@ pub struct MessageMetadata {
 pub enum ContentBlockStart {
     /// Text block starting
     Text { text: String },
-    /// Tool use block starting
-    ToolUse { id: String, name: String },
+    /// Tool call block starting
+    ToolCall { tool_call_id: String, name: String },
 }
 
 /// Incremental content update
@@ -184,14 +169,14 @@ pub enum ContentDelta {
     /// Text token(s)
     TextDelta { text: String },
     /// Partial tool call data
-    ToolUseDelta { partial: PartialToolUse },
+    ToolCallDelta { partial: PartialToolCall },
 }
 
-/// Partial tool use information (accumulating)
+/// Partial tool call information (accumulating)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PartialToolUse {
-    /// Tool use ID (if available)
-    pub id: Option<String>,
+pub struct PartialToolCall {
+    /// Tool call ID (if available)
+    pub tool_call_id: Option<String>,
     /// Tool name (if available)
     pub name: Option<String>,
     /// Partial JSON input (accumulating)
@@ -299,11 +284,11 @@ mod tests {
         assert_eq!(msg.content.len(), 1);
         match &msg.content[0] {
             ContentBlock::ToolResult {
-                tool_use_id,
+                tool_call_id,
                 content,
                 is_error,
             } => {
-                assert_eq!(tool_use_id, "tool-123");
+                assert_eq!(tool_call_id, "tool-123");
                 assert_eq!(content, "result data");
                 assert!(!is_error);
             }
@@ -317,11 +302,11 @@ mod tests {
         assert_eq!(msg.role, MessageRole::Tool);
         match &msg.content[0] {
             ContentBlock::ToolResult {
-                tool_use_id,
+                tool_call_id,
                 content,
                 is_error,
             } => {
-                assert_eq!(tool_use_id, "tool-456");
+                assert_eq!(tool_call_id, "tool-456");
                 assert_eq!(content, "error message");
                 assert!(is_error);
             }
@@ -364,29 +349,31 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_use_block_serialization() {
-        let tool_block = ContentBlock::ToolUse {
-            id: "tool-1".to_string(),
+    fn test_tool_call_block_serialization() {
+        let tool_block = ContentBlock::ToolCall {
+            tool_call_id: "tool-1".to_string(),
             name: "get_weather".to_string(),
             input: serde_json::json!({"location": "SF"}),
         };
         let json = serde_json::to_string(&tool_block).unwrap();
-        assert!(json.contains("\"type\":\"tool_use\""));
+        assert!(json.contains("\"type\":\"tool_call\""));
 
         let deserialized: ContentBlock = serde_json::from_str(&json).unwrap();
         match deserialized {
-            ContentBlock::ToolUse { id, name, .. } => {
-                assert_eq!(id, "tool-1");
+            ContentBlock::ToolCall {
+                tool_call_id, name, ..
+            } => {
+                assert_eq!(tool_call_id, "tool-1");
                 assert_eq!(name, "get_weather");
             }
-            _ => panic!("Expected tool use block"),
+            _ => panic!("Expected tool call block"),
         }
     }
 
     #[test]
     fn test_tool_result_serialization() {
         let result_block = ContentBlock::ToolResult {
-            tool_use_id: "tool-1".to_string(),
+            tool_call_id: "tool-1".to_string(),
             content: "72°F".to_string(),
             is_error: false,
         };
@@ -396,11 +383,11 @@ mod tests {
         let deserialized: ContentBlock = serde_json::from_str(&json).unwrap();
         match deserialized {
             ContentBlock::ToolResult {
-                tool_use_id,
+                tool_call_id,
                 content,
                 is_error,
             } => {
-                assert_eq!(tool_use_id, "tool-1");
+                assert_eq!(tool_call_id, "tool-1");
                 assert_eq!(content, "72°F");
                 assert!(!is_error);
             }

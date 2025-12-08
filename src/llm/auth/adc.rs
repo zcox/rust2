@@ -25,9 +25,9 @@ impl AuthenticationManager {
     /// # Errors
     /// Returns an error if no valid credentials can be found.
     pub async fn new() -> Result<Self, LlmError> {
-        let inner = GcpAuthManager::new()
-            .await
-            .map_err(|e| LlmError::AuthenticationError(format!("Failed to initialize ADC: {}", e)))?;
+        let inner = GcpAuthManager::new().await.map_err(|e| {
+            LlmError::AuthenticationError(format!("Failed to initialize ADC: {}", e))
+        })?;
 
         Ok(Self { inner })
     }
@@ -39,7 +39,8 @@ impl AuthenticationManager {
     /// # Errors
     /// Returns an error if token retrieval or refresh fails.
     pub async fn get_token(&self) -> Result<String, LlmError> {
-        let token = self.inner
+        let token = self
+            .inner
             .get_token(&["https://www.googleapis.com/auth/cloud-platform"])
             .await
             .map_err(|e| LlmError::AuthenticationError(format!("Failed to get token: {}", e)))?;

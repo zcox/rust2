@@ -1,8 +1,7 @@
 mod common;
 
 use rust2::message_db::{
-    CategoryReadOptions, MessageDbClient, MessageDbConfig, StreamReadOptions,
-    WriteMessage,
+    CategoryReadOptions, MessageDbClient, MessageDbConfig, StreamReadOptions, WriteMessage,
 };
 use serde_json::json;
 use testcontainers::clients::Cli;
@@ -81,13 +80,13 @@ async fn test_write_message_idempotent() {
     let stream_name = "test-account-789";
 
     // Write message first time
-    let msg1 = WriteMessage::new(msg_id, stream_name, "Deposited")
-        .with_data(json!({ "amount": 100 }));
+    let msg1 =
+        WriteMessage::new(msg_id, stream_name, "Deposited").with_data(json!({ "amount": 100 }));
     let pos1 = client.write_message(msg1).await.unwrap();
 
     // Write same message ID again - should be idempotent
-    let msg2 = WriteMessage::new(msg_id, stream_name, "Deposited")
-        .with_data(json!({ "amount": 200 })); // Different data, same ID
+    let msg2 =
+        WriteMessage::new(msg_id, stream_name, "Deposited").with_data(json!({ "amount": 200 })); // Different data, same ID
     let pos2 = client.write_message(msg2).await.unwrap();
 
     // Should return same position
@@ -150,8 +149,8 @@ async fn test_write_message_with_json_data() {
         }
     });
 
-    let msg = WriteMessage::new(Uuid::new_v4(), "test-order-123", "OrderPlaced")
-        .with_data(complex_data);
+    let msg =
+        WriteMessage::new(Uuid::new_v4(), "test-order-123", "OrderPlaced").with_data(complex_data);
 
     let position = client.write_message(msg).await.unwrap();
     assert_eq!(position, 0);
@@ -352,8 +351,7 @@ async fn test_get_last_stream_message_single() {
     let stream_name = "test-last-1";
     let msg_id = Uuid::new_v4();
 
-    let msg = WriteMessage::new(msg_id, stream_name, "TestEvent")
-        .with_data(json!({ "value": 42 }));
+    let msg = WriteMessage::new(msg_id, stream_name, "TestEvent").with_data(json!({ "value": 42 }));
     client.write_message(msg).await.unwrap();
 
     let last_msg = client
@@ -376,8 +374,8 @@ async fn test_get_last_stream_message_multiple() {
     let mut last_id = Uuid::nil();
     for i in 0..5 {
         let msg_id = Uuid::new_v4();
-        let msg = WriteMessage::new(msg_id, stream_name, "TestEvent")
-            .with_data(json!({ "sequence": i }));
+        let msg =
+            WriteMessage::new(msg_id, stream_name, "TestEvent").with_data(json!({ "sequence": i }));
         client.write_message(msg).await.unwrap();
         if i == 4 {
             last_id = msg_id;

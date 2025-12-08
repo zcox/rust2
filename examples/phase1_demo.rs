@@ -8,8 +8,7 @@
 /// To run this example:
 /// 1. Start Message DB: docker-compose up -d
 /// 2. Run: cargo run --example phase1_demo
-
-use rust2::message_db::{category, cardinal_id, id, is_category, MessageDbClient, MessageDbConfig};
+use rust2::message_db::{cardinal_id, category, id, is_category, MessageDbClient, MessageDbConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,7 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------");
 
     // For local development with docker-compose
-    let connection_string = "postgresql://postgres:message_store_password@localhost:5433/message_store";
+    let connection_string =
+        "postgresql://postgres:message_store_password@localhost:5433/message_store";
 
     println!("Connection string: {}", connection_string);
 

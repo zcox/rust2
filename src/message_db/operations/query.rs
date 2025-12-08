@@ -1,7 +1,4 @@
-use crate::message_db::{
-    error::Result,
-    types::Message,
-};
+use crate::message_db::{error::Result, types::Message};
 use deadpool_postgres::Pool;
 
 pub(crate) use super::read::parse_message_row;
@@ -58,12 +55,7 @@ pub async fn get_last_stream_message(
     );
 
     // Execute the function call
-    let rows = conn
-        .query(
-            &sql,
-            &[&stream_name, &message_type],
-        )
-        .await?;
+    let rows = conn.query(&sql, &[&stream_name, &message_type]).await?;
 
     // Parse the result
     if rows.is_empty() {
@@ -116,18 +108,10 @@ pub async fn stream_version(
     let conn = pool.get().await?;
 
     // Construct the function call SQL
-    let sql = format!(
-        "SELECT {}.stream_version($1)",
-        schema_name
-    );
+    let sql = format!("SELECT {}.stream_version($1)", schema_name);
 
     // Execute the function call
-    let row = conn
-        .query_one(
-            &sql,
-            &[&stream_name],
-        )
-        .await?;
+    let row = conn.query_one(&sql, &[&stream_name]).await?;
 
     // Extract the version
     let version: Option<i64> = row.get(0);

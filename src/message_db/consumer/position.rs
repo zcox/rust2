@@ -1,8 +1,4 @@
-use crate::message_db::{
-    error::Result,
-    types::WriteMessage,
-    MessageDbClient,
-};
+use crate::message_db::{error::Result, types::WriteMessage, MessageDbClient};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -96,9 +92,14 @@ impl PositionTracker {
     /// # }
     /// ```
     pub async fn read_position(&mut self) -> Result<i64> {
-        match self.client.get_last_stream_message(&self.position_stream_name, None).await? {
+        match self
+            .client
+            .get_last_stream_message(&self.position_stream_name, None)
+            .await?
+        {
             Some(msg) => {
-                let position = msg.data
+                let position = msg
+                    .data
                     .get("position")
                     .and_then(|v| v.as_i64())
                     .unwrap_or(1);

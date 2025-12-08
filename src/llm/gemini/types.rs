@@ -273,7 +273,10 @@ mod tests {
         let response: GenerateContentResponse = serde_json::from_str(json).unwrap();
         assert_eq!(response.candidates.len(), 1);
         assert_eq!(response.candidates[0].content.role, "model");
-        assert_eq!(response.usage_metadata.as_ref().unwrap().total_token_count, 15);
+        assert_eq!(
+            response.usage_metadata.as_ref().unwrap().total_token_count,
+            15
+        );
     }
 
     #[test]

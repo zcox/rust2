@@ -36,4 +36,4 @@ pub use error::{Error, Result};
 pub use operations::{CategoryReadOptions, StreamReadOptions};
 pub use transaction::Transaction;
 pub use types::{Message, WriteMessage};
-pub use utils::{category, cardinal_id, get_base_category, get_category_types, id, is_category};
+pub use utils::{cardinal_id, category, get_base_category, get_category_types, id, is_category};

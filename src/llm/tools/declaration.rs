@@ -38,8 +38,9 @@ pub fn create_tool_declaration<T: JsonSchema>(
     ToolDeclaration {
         name: name.into(),
         description: description.into(),
-        input_schema: serde_json::to_value(&schema)
-            .expect("Failed to serialize schema - this is a bug in schemars or the JsonSchema impl"),
+        input_schema: serde_json::to_value(&schema).expect(
+            "Failed to serialize schema - this is a bug in schemars or the JsonSchema impl",
+        ),
     }
 }
 

@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use futures::stream::Stream;
 use std::pin::Pin;
 
-use super::{error::LlmError, types::{GenerateRequest, Model, StreamEvent}};
+use super::{
+    error::LlmError,
+    types::{GenerateRequest, Model, StreamEvent},
+};
 use crate::llm::claude::ClaudeClient;
 use crate::llm::gemini::GeminiClient;
 

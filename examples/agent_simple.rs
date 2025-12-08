@@ -70,12 +70,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating LLM provider...");
 
     // Set up LLM provider (using Claude Haiku for speed)
-    let provider = create_provider(
-        Model::Claude(ClaudeModel::Haiku45),
-        project_id,
-        location,
-    )
-    .await?;
+    let provider =
+        create_provider(Model::Claude(ClaudeModel::Haiku45), project_id, location).await?;
 
     println!("Creating agent...");
 
@@ -85,7 +81,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Box::new(NoOpExecutor),
         vec![], // No tools
         GenerationConfig::new(1024).with_temperature(0.7),
-        Some("You are a helpful assistant that provides concise, informative responses.".to_string()),
+        Some(
+            "You are a helpful assistant that provides concise, informative responses.".to_string(),
+        ),
     );
 
     println!("Agent created. Starting conversation...\n");

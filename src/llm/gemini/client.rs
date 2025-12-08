@@ -73,11 +73,9 @@ impl GeminiClient {
         let http_client = Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
             .build()
-            .map_err(|e| {
-                LlmError::HttpError {
-                    status: 0,
-                    body: format!("Failed to create HTTP client: {}", e),
-                }
+            .map_err(|e| LlmError::HttpError {
+                status: 0,
+                body: format!("Failed to create HTTP client: {}", e),
             })?;
 
         let auth_manager = AuthenticationManager::new().await?;
@@ -151,8 +149,7 @@ impl GeminiClient {
                 }
 
                 // Convert Gemini response to our events
-                let mut response_events =
-                    from_gemini_response(gemini_response, &mut current_index);
+                let mut response_events = from_gemini_response(gemini_response, &mut current_index);
                 events.append(&mut response_events);
 
                 Ok(events)

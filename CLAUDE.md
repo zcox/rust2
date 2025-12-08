@@ -129,5 +129,8 @@ To add a new LLM provider:
 - LLM: `LlmError` enum for auth, network, parsing, and API errors
 - Both use `Result<T, Error>` type aliases
 
+### ID Field Naming Convention
+Never use generic `id` field names in API types, models, or JSON payloads. Always use descriptive names that specify the type of ID: `message_id`, `thread_id`, `tool_use_id`, etc. This prevents ambiguity and makes the API self-documenting.
+
 ### SSE Event Format
 The chat API uses a specific SSE format with `event:` and `data:` fields. See README.md API documentation for exact event types and JSON schemas.

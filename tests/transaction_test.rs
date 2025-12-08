@@ -1,8 +1,8 @@
 mod common;
 
-use rust2::message_db::{MessageDbClient, MessageDbConfig};
-use rust2::message_db::types::WriteMessage;
 use rust2::message_db::operations::StreamReadOptions;
+use rust2::message_db::types::WriteMessage;
+use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use serde_json::json;
 use testcontainers::clients::Cli;
 use uuid::Uuid;
@@ -202,16 +202,16 @@ async fn test_transaction_idempotent_write_aborts() {
 
     // Write message in first transaction
     let mut txn1 = client.begin_transaction().await.unwrap();
-    let msg1 = WriteMessage::new(msg_id, &stream_name, "Deposited")
-        .with_data(json!({ "amount": 100 }));
+    let msg1 =
+        WriteMessage::new(msg_id, &stream_name, "Deposited").with_data(json!({ "amount": 100 }));
     txn1.write_message(msg1).await.unwrap();
     txn1.commit().await.unwrap();
 
     // Try to write same message ID in second transaction
     // This should fail because duplicate key error aborts the transaction
     let mut txn2 = client.begin_transaction().await.unwrap();
-    let msg2 = WriteMessage::new(msg_id, &stream_name, "Deposited")
-        .with_data(json!({ "amount": 100 }));
+    let msg2 =
+        WriteMessage::new(msg_id, &stream_name, "Deposited").with_data(json!({ "amount": 100 }));
     let result = txn2.write_message(msg2).await;
 
     // Should get an error about duplicate key

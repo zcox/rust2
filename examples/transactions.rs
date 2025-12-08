@@ -1,3 +1,5 @@
+use rust2::message_db::types::WriteMessage;
+use rust2::message_db::StreamReadOptions;
 /// Example: Transaction Patterns in Message DB
 ///
 /// This example demonstrates transaction support for atomic operations:
@@ -10,10 +12,7 @@
 /// To run this example:
 /// 1. Start Message DB: docker-compose up -d
 /// 2. Run: cargo run --example transactions
-
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
-use rust2::message_db::StreamReadOptions;
-use rust2::message_db::types::WriteMessage;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -23,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to Message DB
     let config = MessageDbConfig::from_connection_string(
-        "postgresql://postgres:message_store_password@localhost:5433/message_store"
+        "postgresql://postgres:message_store_password@localhost:5433/message_store",
     )?;
     let client = MessageDbClient::new(config).await?;
 
@@ -38,17 +37,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Write multiple events atomically
     let events = vec![
-        ("OrderPlaced", json!({ "order_id": order_id, "items": ["item1", "item2"] })),
-        ("PaymentRequested", json!({ "amount": 99.99, "currency": "USD" })),
+        (
+            "OrderPlaced",
+            json!({ "order_id": order_id, "items": ["item1", "item2"] }),
+        ),
+        (
+            "PaymentRequested",
+            json!({ "amount": 99.99, "currency": "USD" }),
+        ),
         ("InventoryReserved", json!({ "items": ["item1", "item2"] })),
     ];
 
     for (event_type, data) in events {
-        let event = WriteMessage::new(
-            Uuid::new_v4(),
-            &order_stream,
-            event_type
-        ).with_data(data);
+        let event = WriteMessage::new(Uuid::new_v4(), &order_stream, event_type).with_data(data);
 
         let position = txn.write_message(event).await?;
         println!("  Wrote {} at position {}", event_type, position);
@@ -67,12 +68,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account2_stream = format!("account-{}", account2_id);
 
     // First, create both accounts with initial balance
-    for (stream, balance) in [(account1_stream.as_str(), 1000), (account2_stream.as_str(), 500)] {
-        let event = WriteMessage::new(
-            Uuid::new_v4(),
-            stream,
-            "AccountOpened"
-        ).with_data(json!({ "initial_balance": balance }));
+    for (stream, balance) in [
+        (account1_stream.as_str(), 1000),
+        (account2_stream.as_str(), 500),
+    ] {
+        let event = WriteMessage::new(Uuid::new_v4(), stream, "AccountOpened")
+            .with_data(json!({ "initial_balance": balance }));
 
         client.write_message(event).await?;
     }
@@ -84,38 +85,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut txn = client.begin_transaction().await?;
 
     // Debit from account 1
-    let debit_event = WriteMessage::new(
-        Uuid::new_v4(),
-        &account1_stream,
-        "Withdrawn"
-    )
-    .with_data(json!({
-        "amount": transfer_amount,
-        "transfer_id": transfer_id
-    }))
-    .with_metadata(json!({
-        "correlation_id": transfer_id
-    }));
+    let debit_event = WriteMessage::new(Uuid::new_v4(), &account1_stream, "Withdrawn")
+        .with_data(json!({
+            "amount": transfer_amount,
+            "transfer_id": transfer_id
+        }))
+        .with_metadata(json!({
+            "correlation_id": transfer_id
+        }));
 
     let pos1 = txn.write_message(debit_event).await?;
-    println!("  Debited ${} from account1 (position {})", transfer_amount, pos1);
+    println!(
+        "  Debited ${} from account1 (position {})",
+        transfer_amount, pos1
+    );
 
     // Credit to account 2
-    let credit_event = WriteMessage::new(
-        Uuid::new_v4(),
-        &account2_stream,
-        "Deposited"
-    )
-    .with_data(json!({
-        "amount": transfer_amount,
-        "transfer_id": transfer_id
-    }))
-    .with_metadata(json!({
-        "correlation_id": transfer_id
-    }));
+    let credit_event = WriteMessage::new(Uuid::new_v4(), &account2_stream, "Deposited")
+        .with_data(json!({
+            "amount": transfer_amount,
+            "transfer_id": transfer_id
+        }))
+        .with_metadata(json!({
+            "correlation_id": transfer_id
+        }));
 
     let pos2 = txn.write_message(credit_event).await?;
-    println!("  Credited ${} to account2 (position {})", transfer_amount, pos2);
+    println!(
+        "  Credited ${} to account2 (position {})",
+        transfer_amount, pos2
+    );
 
     txn.commit().await?;
     println!("✓ Transfer completed atomically\n");
@@ -136,8 +135,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => json!({}),
         };
 
-        let event = WriteMessage::new(Uuid::new_v4(), &account3_stream, *event_type)
-            .with_data(data);
+        let event =
+            WriteMessage::new(Uuid::new_v4(), &account3_stream, *event_type).with_data(data);
         client.write_message(event).await?;
         println!("  Setup: wrote {}", event_type);
     }
@@ -175,13 +174,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Make business decision and write
     let withdrawal_amount = 300;
     if balance >= withdrawal_amount {
-        let event = WriteMessage::new(
-            Uuid::new_v4(),
-            &account3_stream,
-            "Withdrawn"
-        )
-        .with_data(json!({ "amount": withdrawal_amount }))
-        .with_expected_version(current_version.unwrap());
+        let event = WriteMessage::new(Uuid::new_v4(), &account3_stream, "Withdrawn")
+            .with_data(json!({ "amount": withdrawal_amount }))
+            .with_expected_version(current_version.unwrap());
 
         let position = txn.write_message(event).await?;
         println!("  Wrote withdrawal at position {}", position);
@@ -203,14 +198,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut txn = client.begin_transaction().await?;
 
     // Write first message
-    let event1 = WriteMessage::new(Uuid::new_v4(), &test_stream, "Event1")
-        .with_data(json!({ "value": 1 }));
+    let event1 =
+        WriteMessage::new(Uuid::new_v4(), &test_stream, "Event1").with_data(json!({ "value": 1 }));
     let pos1 = txn.write_message(event1).await?;
     println!("  Wrote Event1 at position {}", pos1);
 
     // Write second message
-    let event2 = WriteMessage::new(Uuid::new_v4(), &test_stream, "Event2")
-        .with_data(json!({ "value": 2 }));
+    let event2 =
+        WriteMessage::new(Uuid::new_v4(), &test_stream, "Event2").with_data(json!({ "value": 2 }));
     let pos2 = txn.write_message(event2).await?;
     println!("  Wrote Event2 at position {}", pos2);
 
@@ -222,7 +217,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Verify stream is empty
     let options = StreamReadOptions::new(&test_stream);
     let messages = client.get_stream_messages(options).await?;
-    println!("  Verified: stream has {} messages (both writes were rolled back)", messages.len());
+    println!(
+        "  Verified: stream has {} messages (both writes were rolled back)",
+        messages.len()
+    );
 
     // 5. Committing transaction
     println!("\n5. Successfully committing transaction");
@@ -230,13 +228,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut txn = client.begin_transaction().await?;
 
-    let event1 = WriteMessage::new(Uuid::new_v4(), &test_stream, "Event1")
-        .with_data(json!({ "value": 1 }));
+    let event1 =
+        WriteMessage::new(Uuid::new_v4(), &test_stream, "Event1").with_data(json!({ "value": 1 }));
     txn.write_message(event1).await?;
     println!("  Wrote Event1");
 
-    let event2 = WriteMessage::new(Uuid::new_v4(), &test_stream, "Event2")
-        .with_data(json!({ "value": 2 }));
+    let event2 =
+        WriteMessage::new(Uuid::new_v4(), &test_stream, "Event2").with_data(json!({ "value": 2 }));
     txn.write_message(event2).await?;
     println!("  Wrote Event2");
 
@@ -244,7 +242,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Transaction committed\n");
 
     // Verify both messages were written
-    let messages = client.get_stream_messages(StreamReadOptions::new(&test_stream)).await?;
+    let messages = client
+        .get_stream_messages(StreamReadOptions::new(&test_stream))
+        .await?;
     println!("  Verified: stream has {} messages", messages.len());
 
     println!("\n=== Summary ===");

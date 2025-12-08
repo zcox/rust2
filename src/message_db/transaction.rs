@@ -83,7 +83,9 @@ impl Transaction {
     /// Begin a new transaction
     pub(crate) async fn begin(connection: Object, schema_name: String) -> Result<Self> {
         // Execute BEGIN
-        connection.batch_execute("BEGIN").await
+        connection
+            .batch_execute("BEGIN")
+            .await
             .map_err(|e| Error::DatabaseError(format!("Failed to begin transaction: {:?}", e)))?;
 
         Ok(Self {
@@ -95,9 +97,12 @@ impl Transaction {
 
     fn get_connection(&self) -> Result<&Object> {
         if !self.in_transaction {
-            return Err(Error::DatabaseError("Transaction already completed".to_string()));
+            return Err(Error::DatabaseError(
+                "Transaction already completed".to_string(),
+            ));
         }
-        self.connection.as_ref()
+        self.connection
+            .as_ref()
             .ok_or_else(|| Error::DatabaseError("No connection available".to_string()))
     }
 
@@ -224,7 +229,10 @@ impl Transaction {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn get_category_messages(&self, options: CategoryReadOptions) -> Result<Vec<Message>> {
+    pub async fn get_category_messages(
+        &self,
+        options: CategoryReadOptions,
+    ) -> Result<Vec<Message>> {
         let conn = self.get_connection()?;
         get_category_messages_in_transaction(conn, &self.schema_name, options).await
     }
@@ -257,13 +265,8 @@ impl Transaction {
         message_type: Option<&str>,
     ) -> Result<Option<Message>> {
         let conn = self.get_connection()?;
-        get_last_stream_message_in_transaction(
-            conn,
-            &self.schema_name,
-            stream_name,
-            message_type,
-        )
-        .await
+        get_last_stream_message_in_transaction(conn, &self.schema_name, stream_name, message_type)
+            .await
     }
 
     /// Get the current version (position of last message) of a stream within this transaction
@@ -331,8 +334,9 @@ impl Transaction {
     pub async fn commit(mut self) -> Result<()> {
         if self.in_transaction {
             if let Some(conn) = &self.connection {
-                conn.batch_execute("COMMIT").await
-                    .map_err(|e| Error::DatabaseError(format!("Failed to commit transaction: {:?}", e)))?;
+                conn.batch_execute("COMMIT").await.map_err(|e| {
+                    Error::DatabaseError(format!("Failed to commit transaction: {:?}", e))
+                })?;
                 self.in_transaction = false;
             }
         }
@@ -377,8 +381,9 @@ impl Transaction {
     pub async fn rollback(mut self) -> Result<()> {
         if self.in_transaction {
             if let Some(conn) = &self.connection {
-                conn.batch_execute("ROLLBACK").await
-                    .map_err(|e| Error::DatabaseError(format!("Failed to rollback transaction: {:?}", e)))?;
+                conn.batch_execute("ROLLBACK").await.map_err(|e| {
+                    Error::DatabaseError(format!("Failed to rollback transaction: {:?}", e))
+                })?;
                 self.in_transaction = false;
             }
         }
@@ -402,7 +407,10 @@ async fn write_message_in_transaction(
     msg: WriteMessage,
 ) -> Result<i64> {
     // Construct the function call SQL
-    let sql = format!("SELECT {}.write_message($1, $2, $3, $4, $5, $6)", schema_name);
+    let sql = format!(
+        "SELECT {}.write_message($1, $2, $3, $4, $5, $6)",
+        schema_name
+    );
 
     // Prepare the parameters
     let id_str = msg.id.to_string();

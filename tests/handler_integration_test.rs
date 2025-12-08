@@ -14,7 +14,7 @@ use rust2::llm::core::{
     provider::LlmProvider,
     types::{
         ContentBlockStart, ContentDelta, FinishReason, GenerateRequest, MessageMetadata,
-        MessageRole, PartialToolUse, StreamEvent, UsageMetadata,
+        MessageRole, PartialToolCall, StreamEvent, UsageMetadata,
     },
 };
 use rust2::llm::tools::executor::ToolExecutor;
@@ -46,16 +46,14 @@ impl MockLlmProvider {
         let events = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_test".to_string(),
+                    message_id: "msg_test".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
             },
             StreamEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockStart::Text {
-                    text: text.clone(),
-                },
+                block: ContentBlockStart::Text { text: text.clone() },
             },
             StreamEvent::MessageEnd {
                 finish_reason: FinishReason::EndTurn,
@@ -82,7 +80,7 @@ impl MockLlmProvider {
                 vec![
                     StreamEvent::MessageStart {
                         message: MessageMetadata {
-                            id: "msg_test".to_string(),
+                            message_id: "msg_test".to_string(),
                             role: MessageRole::Assistant,
                             usage: None,
                         },
@@ -115,7 +113,7 @@ impl MockLlmProvider {
         let mut events = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_test".to_string(),
+                    message_id: "msg_test".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
@@ -165,23 +163,23 @@ impl MockLlmProvider {
         let first_response = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_test1".to_string(),
+                    message_id: "msg_test1".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
             },
             StreamEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockStart::ToolUse {
-                    id: tool_id.clone(),
+                block: ContentBlockStart::ToolCall {
+                    tool_call_id: tool_id.clone(),
                     name: tool_name.clone(),
                 },
             },
             StreamEvent::ContentDelta {
                 index: 0,
-                delta: ContentDelta::ToolUseDelta {
-                    partial: PartialToolUse {
-                        id: Some(tool_id.clone()),
+                delta: ContentDelta::ToolCallDelta {
+                    partial: PartialToolCall {
+                        tool_call_id: Some(tool_id.clone()),
                         name: Some(tool_name.clone()),
                         partial_json: input_json,
                     },
@@ -203,7 +201,7 @@ impl MockLlmProvider {
         let second_response = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_test2".to_string(),
+                    message_id: "msg_test2".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
@@ -233,23 +231,23 @@ impl MockLlmProvider {
         let events = vec![
             StreamEvent::MessageStart {
                 message: MessageMetadata {
-                    id: "msg_infinite".to_string(),
+                    message_id: "msg_infinite".to_string(),
                     role: MessageRole::Assistant,
                     usage: None,
                 },
             },
             StreamEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockStart::ToolUse {
-                    id: "toolu_infinite".to_string(),
+                block: ContentBlockStart::ToolCall {
+                    tool_call_id: "toolu_infinite".to_string(),
                     name: "infinite_tool".to_string(),
                 },
             },
             StreamEvent::ContentDelta {
                 index: 0,
-                delta: ContentDelta::ToolUseDelta {
-                    partial: PartialToolUse {
-                        id: Some("toolu_infinite".to_string()),
+                delta: ContentDelta::ToolCallDelta {
+                    partial: PartialToolCall {
+                        tool_call_id: Some("toolu_infinite".to_string()),
                         name: Some("infinite_tool".to_string()),
                         partial_json: r#"{"test":"value"}"#.to_string(),
                     },
@@ -272,7 +270,6 @@ impl MockLlmProvider {
             call_count: Arc::new(Mutex::new(0)),
         }
     }
-
 }
 
 #[async_trait]
@@ -295,9 +292,7 @@ impl LlmProvider for MockLlmProvider {
         }
 
         let events = self.responses[index].clone();
-        Ok(Box::pin(futures::stream::iter(
-            events.into_iter().map(Ok),
-        )))
+        Ok(Box::pin(futures::stream::iter(events.into_iter().map(Ok))))
     }
 
     fn provider_name(&self) -> &str {
@@ -484,7 +479,11 @@ async fn test_post_message_sse_event_format() {
             let json_str = line.trim_start_matches("data:").trim();
             if !json_str.is_empty() {
                 let parsed: Result<serde_json::Value, _> = serde_json::from_str(json_str);
-                assert!(parsed.is_ok(), "Data field should be valid JSON: {}", json_str);
+                assert!(
+                    parsed.is_ok(),
+                    "Data field should be valid JSON: {}",
+                    json_str
+                );
             }
         }
     }
@@ -538,7 +537,10 @@ async fn test_post_message_with_tool_calls() {
         .any(|e| matches!(e, ThreadEvent::ToolExecutionCompleted(_)));
 
     assert!(has_tool_started, "Should have ToolExecutionStarted event");
-    assert!(has_tool_completed, "Should have ToolExecutionCompleted event");
+    assert!(
+        has_tool_completed,
+        "Should have ToolExecutionCompleted event"
+    );
 }
 
 #[tokio::test]
@@ -597,7 +599,10 @@ async fn test_post_message_error_handling() {
     let has_failed = events
         .iter()
         .any(|e| matches!(e, ThreadEvent::AgentFailed(_)));
-    assert!(has_failed, "Should have AgentFailed event for max iterations");
+    assert!(
+        has_failed,
+        "Should have AgentFailed event for max iterations"
+    );
 }
 
 #[tokio::test]
@@ -761,9 +766,18 @@ async fn test_post_concurrent_different_threads() {
     assert_eq!(resp_3.status(), 200);
 
     // Verify each thread has only its own events
-    let events_1 = store.read_thread_events(&thread_id_1.to_string()).await.unwrap();
-    let events_2 = store.read_thread_events(&thread_id_2.to_string()).await.unwrap();
-    let events_3 = store.read_thread_events(&thread_id_3.to_string()).await.unwrap();
+    let events_1 = store
+        .read_thread_events(&thread_id_1.to_string())
+        .await
+        .unwrap();
+    let events_2 = store
+        .read_thread_events(&thread_id_2.to_string())
+        .await
+        .unwrap();
+    let events_3 = store
+        .read_thread_events(&thread_id_3.to_string())
+        .await
+        .unwrap();
 
     // Each should have events
     assert!(!events_1.is_empty());
@@ -949,12 +963,10 @@ async fn test_get_thread_multi_turn_conversation() {
     let mut events = vec![];
 
     // Turn 1
-    events.push(ThreadEvent::UserMessageReceived(
-        UserMessageReceivedData {
-            message: "First question".to_string(),
-            timestamp: now,
-        },
-    ));
+    events.push(ThreadEvent::UserMessageReceived(UserMessageReceivedData {
+        message: "First question".to_string(),
+        timestamp: now,
+    }));
     events.push(ThreadEvent::LlmResponseCompleted(
         LlmResponseCompletedData {
             stop_reason: "end_turn".to_string(),
@@ -966,12 +978,10 @@ async fn test_get_thread_multi_turn_conversation() {
     ));
 
     // Turn 2
-    events.push(ThreadEvent::UserMessageReceived(
-        UserMessageReceivedData {
-            message: "Second question".to_string(),
-            timestamp: now,
-        },
-    ));
+    events.push(ThreadEvent::UserMessageReceived(UserMessageReceivedData {
+        message: "Second question".to_string(),
+        timestamp: now,
+    }));
     events.push(ThreadEvent::LlmResponseCompleted(
         LlmResponseCompletedData {
             stop_reason: "end_turn".to_string(),
@@ -983,12 +993,10 @@ async fn test_get_thread_multi_turn_conversation() {
     ));
 
     // Turn 3
-    events.push(ThreadEvent::UserMessageReceived(
-        UserMessageReceivedData {
-            message: "Third question".to_string(),
-            timestamp: now,
-        },
-    ));
+    events.push(ThreadEvent::UserMessageReceived(UserMessageReceivedData {
+        message: "Third question".to_string(),
+        timestamp: now,
+    }));
     events.push(ThreadEvent::LlmResponseCompleted(
         LlmResponseCompletedData {
             stop_reason: "end_turn".to_string(),
@@ -1093,12 +1101,10 @@ async fn test_get_thread_message_ordering() {
     for i in 0..10 {
         let timestamp = base_time + chrono::Duration::seconds(i);
 
-        events.push(ThreadEvent::UserMessageReceived(
-            UserMessageReceivedData {
-                message: format!("Message {}", i),
-                timestamp,
-            },
-        ));
+        events.push(ThreadEvent::UserMessageReceived(UserMessageReceivedData {
+            message: format!("Message {}", i),
+            timestamp,
+        }));
 
         events.push(ThreadEvent::LlmResponseCompleted(
             LlmResponseCompletedData {
@@ -1133,9 +1139,7 @@ async fn test_get_thread_message_ordering() {
 
     // Verify timestamps increase monotonically
     for i in 1..thread_response.messages.len() {
-        assert!(
-            thread_response.messages[i].timestamp >= thread_response.messages[i - 1].timestamp
-        );
+        assert!(thread_response.messages[i].timestamp >= thread_response.messages[i - 1].timestamp);
     }
 }
 
@@ -1149,12 +1153,10 @@ async fn test_get_thread_performance_long_thread() {
     // Create 100 events (10 turn conversation)
     let mut events = vec![];
     for i in 0..10 {
-        events.push(ThreadEvent::UserMessageReceived(
-            UserMessageReceivedData {
-                message: format!("Question {}", i),
-                timestamp: now,
-            },
-        ));
+        events.push(ThreadEvent::UserMessageReceived(UserMessageReceivedData {
+            message: format!("Question {}", i),
+            timestamp: now,
+        }));
 
         events.push(ThreadEvent::AgentIterationStarted(
             AgentIterationStartedData {

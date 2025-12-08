@@ -60,11 +60,11 @@ pub fn project_events_to_messages(events: &[ThreadEvent]) -> Vec<Message> {
                     .content_blocks
                     .iter()
                     .map(|block| match block {
-                        ContentBlockData::Text { text } => ContentBlock::Text {
-                            text: text.clone(),
-                        },
-                        ContentBlockData::ToolUse { id, name, input } => ContentBlock::ToolUse {
-                            id: id.clone(),
+                        ContentBlockData::Text { text } => {
+                            ContentBlock::Text { text: text.clone() }
+                        }
+                        ContentBlockData::ToolUse { id, name, input } => ContentBlock::ToolCall {
+                            tool_call_id: id.clone(),
                             name: name.clone(),
                             input: input.clone(),
                         },
@@ -82,7 +82,7 @@ pub fn project_events_to_messages(events: &[ThreadEvent]) -> Vec<Message> {
                 messages.push(Message {
                     role: MessageRole::Tool,
                     content: vec![ContentBlock::ToolResult {
-                        tool_use_id: data.tool_use_id.clone(),
+                        tool_call_id: data.tool_use_id.clone(),
                         content: data.result.clone(),
                         is_error: false,
                     }],
@@ -94,7 +94,7 @@ pub fn project_events_to_messages(events: &[ThreadEvent]) -> Vec<Message> {
                 messages.push(Message {
                     role: MessageRole::Tool,
                     content: vec![ContentBlock::ToolResult {
-                        tool_use_id: data.tool_use_id.clone(),
+                        tool_call_id: data.tool_use_id.clone(),
                         content: data.error.clone(),
                         is_error: true,
                     }],
@@ -251,7 +251,8 @@ mod tests {
             }),
             ThreadEvent::AgentCompleted(AgentCompletedData {
                 total_iterations: 2,
-                final_response: "The weather in Tokyo is 18°C with partly cloudy skies.".to_string(),
+                final_response: "The weather in Tokyo is 18°C with partly cloudy skies."
+                    .to_string(),
                 timestamp: now,
             }),
         ];
@@ -272,12 +273,16 @@ mod tests {
             _ => panic!("Expected text content"),
         }
         match &messages[1].content[1] {
-            ContentBlock::ToolUse { id, name, input } => {
-                assert_eq!(id, "toolu_123");
+            ContentBlock::ToolCall {
+                tool_call_id,
+                name,
+                input,
+            } => {
+                assert_eq!(tool_call_id, "toolu_123");
                 assert_eq!(name, "get_weather");
                 assert_eq!(input["location"], "Tokyo");
             }
-            _ => panic!("Expected tool use content"),
+            _ => panic!("Expected tool call content"),
         }
 
         // Tool result message
@@ -285,11 +290,11 @@ mod tests {
         assert_eq!(messages[2].content.len(), 1);
         match &messages[2].content[0] {
             ContentBlock::ToolResult {
-                tool_use_id,
+                tool_call_id,
                 content,
                 is_error,
             } => {
-                assert_eq!(tool_use_id, "toolu_123");
+                assert_eq!(tool_call_id, "toolu_123");
                 assert!(content.contains("18"));
                 assert!(!is_error);
             }
@@ -415,11 +420,11 @@ mod tests {
         assert_eq!(messages[2].role, MessageRole::Tool);
         match &messages[2].content[0] {
             ContentBlock::ToolResult {
-                tool_use_id,
+                tool_call_id,
                 content,
                 is_error,
             } => {
-                assert_eq!(tool_use_id, "toolu_fail");
+                assert_eq!(tool_call_id, "toolu_fail");
                 assert_eq!(content, "Location not found");
                 assert!(is_error); // Key check: error flag is set
             }
@@ -476,13 +481,13 @@ mod tests {
         }
 
         match &messages[1].content[1] {
-            ContentBlock::ToolUse { name, .. } => assert_eq!(name, "calculate"),
-            _ => panic!("Expected tool use"),
+            ContentBlock::ToolCall { name, .. } => assert_eq!(name, "calculate"),
+            _ => panic!("Expected tool call"),
         }
 
         match &messages[1].content[2] {
-            ContentBlock::ToolUse { name, .. } => assert_eq!(name, "get_weather"),
-            _ => panic!("Expected tool use"),
+            ContentBlock::ToolCall { name, .. } => assert_eq!(name, "get_weather"),
+            _ => panic!("Expected tool call"),
         }
     }
 
@@ -569,7 +574,7 @@ mod tests {
         assert_eq!(messages[1].role, MessageRole::Assistant);
         assert_eq!(messages[1].content.len(), 1); // Only tool use, no text
         match &messages[1].content[0] {
-            ContentBlock::ToolUse { .. } => {} // OK
+            ContentBlock::ToolCall { .. } => {} // OK
             _ => panic!("Expected tool use only"),
         }
     }

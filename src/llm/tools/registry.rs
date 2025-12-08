@@ -25,9 +25,8 @@ pub enum RegistryError {
 }
 
 /// Type alias for boxed async functions
-type AsyncToolFn = Box<
-    dyn Fn(serde_json::Value) -> BoxFuture<'static, Result<String, String>> + Send + Sync,
->;
+type AsyncToolFn =
+    Box<dyn Fn(serde_json::Value) -> BoxFuture<'static, Result<String, String>> + Send + Sync>;
 
 /// Entry holding both function and its declaration (internal)
 struct ToolEntry {
@@ -400,7 +399,11 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
@@ -415,7 +418,11 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
@@ -436,7 +443,9 @@ mod tests {
                 |args: AddArgs| async move {
                     // Simulate async work
                     tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                    Ok(AddResult { sum: args.a + args.b })
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
                 },
                 create_test_declaration("add_async", "Add two numbers asynchronously"),
             )
@@ -459,7 +468,9 @@ mod tests {
                     if args.b == 0 {
                         Err("Division by zero".to_string())
                     } else {
-                        Ok(AddResult { sum: args.a / args.b })
+                        Ok(AddResult {
+                            sum: args.a / args.b,
+                        })
                     }
                 },
                 create_test_declaration("divide", "Divide two numbers"),
@@ -479,7 +490,11 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
@@ -489,7 +504,9 @@ mod tests {
         let result = registry.execute_function("add", args).await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Failed to deserialize arguments"));
+        assert!(result
+            .unwrap_err()
+            .contains("Failed to deserialize arguments"));
     }
 
     #[tokio::test]
@@ -509,7 +526,11 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
@@ -531,14 +552,22 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a * args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a * args.b,
+                    })
+                },
                 create_test_declaration("multiply", "Multiply two numbers"),
             )
             .unwrap();
@@ -665,7 +694,11 @@ mod tests {
 
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
@@ -681,14 +714,22 @@ mod tests {
         // Register a tool
         registry
             .register_sync_tool(
-                |args: AddArgs| Ok(AddResult { sum: args.a + args.b }),
+                |args: AddArgs| {
+                    Ok(AddResult {
+                        sum: args.a + args.b,
+                    })
+                },
                 create_test_declaration("add", "Add two numbers"),
             )
             .unwrap();
 
         // Try to register the same tool again
         let result = registry.register_sync_tool(
-            |args: AddArgs| Ok(AddResult { sum: args.a * args.b }),
+            |args: AddArgs| {
+                Ok(AddResult {
+                    sum: args.a * args.b,
+                })
+            },
             create_test_declaration("add", "Add two numbers again"),
         );
 
@@ -716,7 +757,9 @@ mod tests {
             };
 
             Box::pin(async move {
-                let result = AddResult { sum: args.a + args.b };
+                let result = AddResult {
+                    sum: args.a + args.b,
+                };
                 serde_json::to_string(&result)
                     .map_err(|e| format!("Failed to serialize result: {}", e))
             }) as BoxFuture<'static, _>
@@ -758,7 +801,10 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(RegistryError::NameMismatch { name, declaration_name }) => {
+            Err(RegistryError::NameMismatch {
+                name,
+                declaration_name,
+            }) => {
                 assert_eq!(name, "tool1");
                 assert_eq!(declaration_name, "tool2");
             }

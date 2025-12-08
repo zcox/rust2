@@ -224,13 +224,13 @@ async fn test_claude_tool_call() {
         match event.expect("Stream error") {
             StreamEvent::ContentBlockStart { block, .. } => {
                 println!("Block start: {:?}", block);
-                if let rust2::llm::core::types::ContentBlockStart::ToolUse { id, name } = block {
+                if let rust2::llm::core::types::ContentBlockStart::ToolCall { tool_call_id: id, name } = block {
                     tool_use_id = Some(id);
                     tool_name = Some(name);
                 }
             }
             StreamEvent::ContentDelta { delta, .. } => {
-                if let ContentDelta::ToolUseDelta { partial } = delta {
+                if let ContentDelta::ToolCallDelta { partial } = delta {
                     tool_input_json.push_str(&partial.partial_json);
                     println!("Accumulated tool JSON: {}", tool_input_json);
                 }
@@ -256,8 +256,8 @@ async fn test_claude_tool_call() {
     assert_eq!(finish_reason, Some(FinishReason::ToolUse));
 
     // Parse the accumulated JSON to verify it's valid
-    let parsed: serde_json::Value = serde_json::from_str(&tool_input_json)
-        .expect("Tool input should be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&tool_input_json).expect("Tool input should be valid JSON");
     assert!(parsed.get("location").is_some());
 }
 
@@ -300,12 +300,12 @@ async fn test_claude_tool_use_with_result() {
     while let Some(event) = stream.next().await {
         match event.expect("Stream error") {
             StreamEvent::ContentBlockStart { block, .. } => {
-                if let rust2::llm::core::types::ContentBlockStart::ToolUse { id, .. } = block {
+                if let rust2::llm::core::types::ContentBlockStart::ToolCall { tool_call_id: id, .. } = block {
                     tool_use_id = Some(id);
                 }
             }
             StreamEvent::ContentDelta { delta, .. } => {
-                if let ContentDelta::ToolUseDelta { partial } = delta {
+                if let ContentDelta::ToolCallDelta { partial } = delta {
                     tool_input_json.push_str(&partial.partial_json);
                 }
             }
@@ -321,11 +321,10 @@ async fn test_claude_tool_use_with_result() {
             Message::user("What's the weather in Tokyo?"),
             Message {
                 role: MessageRole::Assistant,
-                content: vec![ContentBlock::ToolUse {
-                    id: tool_id.clone(),
+                content: vec![ContentBlock::ToolCall {
+                    tool_call_id: tool_id.clone(),
                     name: "get_weather".to_string(),
-                    input: serde_json::from_str(&tool_input_json)
-                        .expect("Valid JSON"),
+                    input: serde_json::from_str(&tool_input_json).expect("Valid JSON"),
                 }],
             },
             Message::tool_result(tool_id, "The weather in Tokyo is sunny, 22°C"),
@@ -357,9 +356,11 @@ async fn test_claude_tool_use_with_result() {
     println!("Final response: {}", response_text);
     assert!(!response_text.is_empty());
     // Should mention the weather information
-    assert!(response_text.to_lowercase().contains("tokyo")
+    assert!(
+        response_text.to_lowercase().contains("tokyo")
             || response_text.to_lowercase().contains("sunny")
-            || response_text.to_lowercase().contains("22"));
+            || response_text.to_lowercase().contains("22")
+    );
 }
 
 #[tokio::test]
@@ -402,12 +403,12 @@ async fn test_claude_parallel_tool_calls() {
     while let Some(event) = stream.next().await {
         match event.expect("Stream error") {
             StreamEvent::ContentBlockStart { block, .. } => {
-                if let rust2::llm::core::types::ContentBlockStart::ToolUse { id, name } = block {
+                if let rust2::llm::core::types::ContentBlockStart::ToolCall { tool_call_id: id, name } = block {
                     current_tool = Some((id, name, String::new()));
                 }
             }
             StreamEvent::ContentDelta { delta, .. } => {
-                if let ContentDelta::ToolUseDelta { partial } = delta {
+                if let ContentDelta::ToolCallDelta { partial } = delta {
                     if let Some((_, _, json)) = &mut current_tool {
                         json.push_str(&partial.partial_json);
                     }

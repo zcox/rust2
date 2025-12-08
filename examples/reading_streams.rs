@@ -1,3 +1,5 @@
+use rust2::message_db::types::WriteMessage;
+use rust2::message_db::{CategoryReadOptions, StreamReadOptions};
 /// Example: Reading Streams from Message DB
 ///
 /// This example demonstrates various patterns for reading messages:
@@ -11,10 +13,7 @@
 /// To run this example:
 /// 1. Start Message DB: docker-compose up -d
 /// 2. Run: cargo run --example reading_streams
-
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
-use rust2::message_db::{StreamReadOptions, CategoryReadOptions};
-use rust2::message_db::types::WriteMessage;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -24,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to Message DB
     let config = MessageDbConfig::from_connection_string(
-        "postgresql://postgres:message_store_password@localhost:5433/message_store"
+        "postgresql://postgres:message_store_password@localhost:5433/message_store",
     )?;
     let client = MessageDbClient::new(config).await?;
 
@@ -37,19 +36,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let event_type = if i % 2 == 0 { "Deposited" } else { "Withdrawn" };
         let amount = (i + 1) * 100;
 
-        let event = WriteMessage::new(
-            Uuid::new_v4(),
-            &stream_name,
-            event_type
-        )
-        .with_data(json!({
-            "amount": amount,
-            "currency": "USD",
-            "sequence": i
-        }))
-        .with_metadata(json!({
-            "correlation_id": format!("corr-{}", i)
-        }));
+        let event = WriteMessage::new(Uuid::new_v4(), &stream_name, event_type)
+            .with_data(json!({
+                "amount": amount,
+                "currency": "USD",
+                "sequence": i
+            }))
+            .with_metadata(json!({
+                "correlation_id": format!("corr-{}", i)
+            }));
 
         client.write_message(event).await?;
     }
@@ -64,10 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Found {} messages:", messages.len());
     for msg in &messages {
-        println!("  Position {}: {} - amount: ${}",
-            msg.position,
-            msg.message_type,
-            msg.data["amount"]
+        println!(
+            "  Position {}: {} - amount: ${}",
+            msg.position, msg.message_type, msg.data["amount"]
         );
     }
 
@@ -78,7 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = StreamReadOptions::new(&stream_name).with_position(5);
     let messages = client.get_stream_messages(options).await?;
 
-    println!("Found {} messages starting from position 5:", messages.len());
+    println!(
+        "Found {} messages starting from position 5:",
+        messages.len()
+    );
     for msg in &messages {
         println!("  Position {}: {}", msg.position, msg.message_type);
     }
@@ -114,7 +111,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n5. Getting last message of specific type");
     println!("-----------------------------------------");
 
-    match client.get_last_stream_message(&stream_name, Some("Withdrawn")).await? {
+    match client
+        .get_last_stream_message(&stream_name, Some("Withdrawn"))
+        .await?
+    {
         Some(msg) => {
             println!("Last 'Withdrawn' message:");
             println!("  Position: {}", msg.position);
@@ -142,17 +142,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Write to a few more account streams
     for i in 0..3 {
         let other_stream = format!("account-{}", Uuid::new_v4());
-        let event = WriteMessage::new(
-            Uuid::new_v4(),
-            &other_stream,
-            "AccountOpened"
-        ).with_data(json!({ "account_number": i }));
+        let event = WriteMessage::new(Uuid::new_v4(), &other_stream, "AccountOpened")
+            .with_data(json!({ "account_number": i }));
 
         client.write_message(event).await?;
     }
 
-    let options = CategoryReadOptions::new("account")
-        .with_batch_size(20);
+    let options = CategoryReadOptions::new("account").with_batch_size(20);
     let messages = client.get_category_messages(options).await?;
 
     println!("Found {} messages in 'account' category:", messages.len());
@@ -181,8 +177,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_batch_size(10);
         let messages = client.get_category_messages(options).await?;
 
-        println!("Reading from global position {}, got {} messages",
-            start_position, messages.len());
+        println!(
+            "Reading from global position {}, got {} messages",
+            start_position,
+            messages.len()
+        );
     }
 
     // 9. Demonstrate message properties

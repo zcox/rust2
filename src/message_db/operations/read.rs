@@ -325,6 +325,9 @@ mod tests {
         assert_eq!(opts.correlation, Some("withdrawal-cmd".to_string()));
         assert_eq!(opts.consumer_group_member, Some(0));
         assert_eq!(opts.consumer_group_size, Some(3));
-        assert_eq!(opts.condition, Some("type IN ('Deposited', 'Withdrawn')".to_string()));
+        assert_eq!(
+            opts.condition,
+            Some("type IN ('Deposited', 'Withdrawn')".to_string())
+        );
     }
 }

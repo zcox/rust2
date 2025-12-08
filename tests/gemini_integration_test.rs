@@ -221,7 +221,7 @@ async fn test_gemini_tool_call() {
             }
             StreamEvent::ContentDelta { delta, .. } => {
                 println!("Delta: {:?}", delta);
-                if let ContentDelta::ToolUseDelta { partial } = delta {
+                if let ContentDelta::ToolCallDelta { partial } = delta {
                     tool_calls.push(partial);
                 }
             }
@@ -235,9 +235,11 @@ async fn test_gemini_tool_call() {
     println!("Tool calls: {:?}", tool_calls);
     assert!(!tool_calls.is_empty());
     // Should have called get_weather
-    assert!(tool_calls
-        .iter()
-        .any(|tc| tc.name.as_ref().map(|n| n == "get_weather").unwrap_or(false)));
+    assert!(tool_calls.iter().any(|tc| tc
+        .name
+        .as_ref()
+        .map(|n| n == "get_weather")
+        .unwrap_or(false)));
 }
 
 #[tokio::test]
@@ -261,7 +263,14 @@ async fn test_gemini_streaming_events() {
 
     while let Some(event) = stream.next().await {
         let event = event.expect("Stream error");
-        event_types.push(format!("{:?}", event).split('{').next().unwrap().trim().to_string());
+        event_types.push(
+            format!("{:?}", event)
+                .split('{')
+                .next()
+                .unwrap()
+                .trim()
+                .to_string(),
+        );
     }
 
     println!("Event sequence: {:?}", event_types);

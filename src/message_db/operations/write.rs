@@ -60,11 +60,7 @@ use deadpool_postgres::Pool;
 ///     Ok(())
 /// }
 /// ```
-pub async fn write_message(
-    pool: &Pool,
-    schema_name: &str,
-    msg: WriteMessage,
-) -> Result<i64> {
+pub async fn write_message(pool: &Pool, schema_name: &str, msg: WriteMessage) -> Result<i64> {
     let conn = pool.get().await?;
 
     // Construct the function call SQL
@@ -104,7 +100,8 @@ pub async fn write_message(
 
                 if message.contains("Wrong expected version")
                     || message.contains("stream version")
-                    || message.contains("expected") {
+                    || message.contains("expected")
+                {
                     return Err(Error::ConcurrencyError {
                         stream_name: msg.stream_name.clone(),
                         expected_version: msg.expected_version.unwrap_or(-1),
@@ -126,14 +123,22 @@ pub async fn write_message(
                     let existing_row = conn
                         .query_one(&query_sql, &[&msg.id, &msg.stream_name])
                         .await
-                        .map_err(|e| Error::DatabaseError(format!("Failed to query existing message position: {:?}", e)))?;
+                        .map_err(|e| {
+                            Error::DatabaseError(format!(
+                                "Failed to query existing message position: {:?}",
+                                e
+                            ))
+                        })?;
 
                     let position: i64 = existing_row.get(0);
                     return Ok(position);
                 }
             }
             // Include more details in error
-            Err(Error::DatabaseError(format!("write_message failed: {:?}", e)))
+            Err(Error::DatabaseError(format!(
+                "write_message failed: {:?}",
+                e
+            )))
         }
     }
 }
@@ -146,13 +151,9 @@ mod tests {
 
     #[test]
     fn test_write_message_struct() {
-        let msg = WriteMessage::new(
-            Uuid::new_v4(),
-            "account-123",
-            "Withdrawn"
-        )
-        .with_data(json!({ "amount": 50 }))
-        .with_expected_version(4);
+        let msg = WriteMessage::new(Uuid::new_v4(), "account-123", "Withdrawn")
+            .with_data(json!({ "amount": 50 }))
+            .with_expected_version(4);
 
         assert_eq!(msg.stream_name, "account-123");
         assert_eq!(msg.message_type, "Withdrawn");

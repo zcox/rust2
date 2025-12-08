@@ -116,8 +116,8 @@ fn parse_event(event_text: &str) -> Option<Result<ClaudeStreamEvent, LlmError>> 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::{ClaudeContentBlockStart, ClaudeContentDelta};
+    use super::*;
     use futures::stream;
 
     #[tokio::test]
@@ -151,7 +151,10 @@ mod tests {
         assert!(result.is_some());
         let event = result.unwrap().unwrap();
         match event {
-            ClaudeStreamEvent::ContentBlockStart { index, content_block } => {
+            ClaudeStreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 0);
                 match content_block {
                     ClaudeContentBlockStart::Text { text } => {
@@ -199,14 +202,12 @@ mod tests {
         assert!(result.is_some());
         let event = result.unwrap().unwrap();
         match event {
-            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => {
-                match delta {
-                    ClaudeContentDelta::InputJsonDelta { partial_json } => {
-                        assert_eq!(partial_json, r#"{"location":"#);
-                    }
-                    _ => panic!("Expected input json delta"),
+            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => match delta {
+                ClaudeContentDelta::InputJsonDelta { partial_json } => {
+                    assert_eq!(partial_json, r#"{"location":"#);
                 }
-            }
+                _ => panic!("Expected input json delta"),
+            },
             _ => panic!("Expected ContentBlockDelta event"),
         }
     }
@@ -274,7 +275,8 @@ mod tests {
     async fn test_parse_chunked_events() {
         // Simulate event arriving in chunks
         let chunk1 = b"event: content_block_delta\ndata: {\"type\":\"content_block";
-        let chunk2 = b"_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello\"}}\n\n";
+        let chunk2 =
+            b"_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello\"}}\n\n";
 
         let byte_stream = Box::pin(stream::iter(vec![
             Ok(Bytes::from_static(chunk1)),
@@ -286,14 +288,12 @@ mod tests {
         let result = sse_stream.next().await;
         assert!(result.is_some());
         match result.unwrap().unwrap() {
-            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => {
-                match delta {
-                    ClaudeContentDelta::TextDelta { text } => {
-                        assert_eq!(text, "Hello");
-                    }
-                    _ => panic!("Expected text delta"),
+            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => match delta {
+                ClaudeContentDelta::TextDelta { text } => {
+                    assert_eq!(text, "Hello");
                 }
-            }
+                _ => panic!("Expected text delta"),
+            },
             _ => panic!("Expected ContentBlockDelta event"),
         }
     }
@@ -341,7 +341,10 @@ mod tests {
 
         assert!(result.is_some());
         match result.unwrap().unwrap() {
-            ClaudeStreamEvent::ContentBlockStart { index, content_block } => {
+            ClaudeStreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 1);
                 match content_block {
                     ClaudeContentBlockStart::ToolUse { id, name } => {

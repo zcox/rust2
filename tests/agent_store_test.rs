@@ -1,10 +1,7 @@
 mod common;
 
 use chrono::Utc;
-use rust2::llm::agent::{
-    events::*,
-    store::ThreadStore,
-};
+use rust2::llm::agent::{events::*, store::ThreadStore};
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use serde_json::json;
 use testcontainers::clients::Cli;

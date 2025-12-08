@@ -18,6 +18,7 @@
 
 mod common;
 
+use async_trait::async_trait;
 use dotenvy::dotenv;
 use futures_util::StreamExt;
 use reqwest::Client;
@@ -33,7 +34,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use testcontainers::clients::Cli;
 use uuid::Uuid;
-use async_trait::async_trait;
 
 /// Check if GCP credentials are available
 fn check_credentials() -> Option<String> {
@@ -72,7 +72,9 @@ impl ToolExecutor for MockToolExecutor {
             if let Some(expression) = arguments.get("expression").and_then(|v| v.as_str()) {
                 // Very simple evaluation - just handle "X * Y" format
                 if let Some((a, b)) = expression.split_once(" * ") {
-                    if let (Ok(num_a), Ok(num_b)) = (a.trim().parse::<i32>(), b.trim().parse::<i32>()) {
+                    if let (Ok(num_a), Ok(num_b)) =
+                        (a.trim().parse::<i32>(), b.trim().parse::<i32>())
+                    {
                         return Ok(json!({ "result": num_a * num_b }).to_string());
                     }
                 }
@@ -85,7 +87,8 @@ impl ToolExecutor for MockToolExecutor {
             "tool": name,
             "arguments": arguments,
             "result": "Mock tool execution result"
-        }).to_string())
+        })
+        .to_string())
     }
 }
 
@@ -98,7 +101,6 @@ async fn start_test_server_with_real_llm(
     Arc<ThreadStore>,
     testcontainers::Container<'static, testcontainers::GenericImage>,
 ) {
-
     // Start MessageDB container
     let docker = Box::leak(Box::new(Cli::default()));
     let container = docker.run(common::create_message_db_container());
@@ -124,8 +126,7 @@ async fn start_test_server_with_real_llm(
     .await
     .expect("Failed to create Claude client");
 
-    let llm_provider: Arc<dyn rust2::llm::core::provider::LlmProvider> =
-        Arc::new(claude_client);
+    let llm_provider: Arc<dyn rust2::llm::core::provider::LlmProvider> = Arc::new(claude_client);
 
     // Create tool executor
     let tool_executor: Arc<dyn ToolExecutor> = Arc::new(MockToolExecutor);
@@ -262,7 +263,10 @@ async fn test_real_llm_simple_conversation() {
         .await
         .expect("Failed to parse GET response");
 
-    println!("Thread data: {}", serde_json::to_string_pretty(&thread_data).unwrap());
+    println!(
+        "Thread data: {}",
+        serde_json::to_string_pretty(&thread_data).unwrap()
+    );
 
     // Verify conversation stored correctly
     let messages = thread_data
@@ -270,7 +274,11 @@ async fn test_real_llm_simple_conversation() {
         .and_then(|v| v.as_array())
         .expect("Should have messages array");
 
-    assert_eq!(messages.len(), 2, "Should have 2 messages (user + assistant)");
+    assert_eq!(
+        messages.len(),
+        2,
+        "Should have 2 messages (user + assistant)"
+    );
 
     // Verify user message
     assert_eq!(
@@ -297,7 +305,10 @@ async fn test_real_llm_simple_conversation() {
         .expect("Failed to read thread events");
 
     println!("Event count: {}", events.len());
-    assert!(events.len() > 0, "Should have persisted events in MessageDB");
+    assert!(
+        events.len() > 0,
+        "Should have persisted events in MessageDB"
+    );
 
     // Verify key event types exist
     let event_types: Vec<String> = events.iter().map(|e| e.event_type().to_string()).collect();
@@ -325,7 +336,8 @@ async fn test_real_llm_with_tools() {
     // Define calculator tool
     let calculator_tool = ToolDeclaration {
         name: "calculator".to_string(),
-        description: "Evaluates a mathematical expression. Use this to perform calculations.".to_string(),
+        description: "Evaluates a mathematical expression. Use this to perform calculations."
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -517,7 +529,8 @@ async fn test_real_llm_streaming_quality() {
     }
 
     let total_duration = start_time.elapsed();
-    let streaming_duration = if let (Some(first), Some(last)) = (first_event_time, last_event_time) {
+    let streaming_duration = if let (Some(first), Some(last)) = (first_event_time, last_event_time)
+    {
         last.duration_since(first)
     } else {
         Duration::from_secs(0)
@@ -545,7 +558,10 @@ async fn test_real_llm_streaming_quality() {
     );
 
     // Haiku quality check (basic)
-    let line_count = full_response.lines().filter(|l| !l.trim().is_empty()).count();
+    let line_count = full_response
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .count();
     assert!(
         line_count >= 3,
         "Haiku should have at least 3 lines, got {}",

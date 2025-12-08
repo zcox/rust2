@@ -38,12 +38,7 @@ async fn test_position_tracker_write_and_read() {
     let client = MessageDbClient::new(config).await.unwrap();
 
     // Create position tracker
-    let mut tracker = PositionTracker::new(
-        client.clone(),
-        "test-category",
-        "test-consumer",
-        10,
-    );
+    let mut tracker = PositionTracker::new(client.clone(), "test-category", "test-consumer", 10);
 
     // Update position
     tracker.update_position(100).await.unwrap();
@@ -69,12 +64,7 @@ async fn test_position_tracker_update_interval() {
     let client = MessageDbClient::new(config).await.unwrap();
 
     // Create position tracker with update interval of 3
-    let mut tracker = PositionTracker::new(
-        client.clone(),
-        "test-category",
-        "test-consumer",
-        3,
-    );
+    let mut tracker = PositionTracker::new(client.clone(), "test-category", "test-consumer", 3);
 
     // Update position twice (should not write yet)
     tracker.update_position(10).await.unwrap();
@@ -127,7 +117,10 @@ async fn test_consumer_poll_once() {
     consumer.on("TestEvent", move |msg: Message| {
         let processed = Arc::clone(&processed_clone);
         Box::pin(async move {
-            processed.lock().unwrap().push(msg.data["index"].as_i64().unwrap());
+            processed
+                .lock()
+                .unwrap()
+                .push(msg.data["index"].as_i64().unwrap());
             Ok(())
         })
     });
@@ -170,7 +163,9 @@ async fn test_consumer_resume_from_position() {
         .with_batch_size(3)
         .with_position_update_interval(1); // Write position after each message
 
-    let mut consumer1 = Consumer::new(client.clone(), consumer_config.clone()).await.unwrap();
+    let mut consumer1 = Consumer::new(client.clone(), consumer_config.clone())
+        .await
+        .unwrap();
 
     let processed1 = Arc::new(Mutex::new(Vec::new()));
     let processed1_clone = Arc::clone(&processed1);
@@ -178,7 +173,10 @@ async fn test_consumer_resume_from_position() {
     consumer1.on("TestEvent", move |msg: Message| {
         let processed = Arc::clone(&processed1_clone);
         Box::pin(async move {
-            processed.lock().unwrap().push(msg.data["index"].as_i64().unwrap());
+            processed
+                .lock()
+                .unwrap()
+                .push(msg.data["index"].as_i64().unwrap());
             Ok(())
         })
     });
@@ -190,7 +188,9 @@ async fn test_consumer_resume_from_position() {
     assert_eq!(processed1.len(), 3);
 
     // Second consumer should resume and process remaining messages
-    let mut consumer2 = Consumer::new(client.clone(), consumer_config).await.unwrap();
+    let mut consumer2 = Consumer::new(client.clone(), consumer_config)
+        .await
+        .unwrap();
 
     let processed2 = Arc::new(Mutex::new(Vec::new()));
     let processed2_clone = Arc::clone(&processed2);
@@ -198,7 +198,10 @@ async fn test_consumer_resume_from_position() {
     consumer2.on("TestEvent", move |msg: Message| {
         let processed = Arc::clone(&processed2_clone);
         Box::pin(async move {
-            processed.lock().unwrap().push(msg.data["index"].as_i64().unwrap());
+            processed
+                .lock()
+                .unwrap()
+                .push(msg.data["index"].as_i64().unwrap());
             Ok(())
         })
     });
@@ -318,8 +321,12 @@ async fn test_consumer_with_consumer_group() {
         .with_consumer_group(1, 2)
         .with_batch_size(20);
 
-    let mut consumer0 = Consumer::new(client.clone(), consumer_config_0).await.unwrap();
-    let mut consumer1 = Consumer::new(client.clone(), consumer_config_1).await.unwrap();
+    let mut consumer0 = Consumer::new(client.clone(), consumer_config_0)
+        .await
+        .unwrap();
+    let mut consumer1 = Consumer::new(client.clone(), consumer_config_1)
+        .await
+        .unwrap();
 
     let processed0 = Arc::new(Mutex::new(Vec::new()));
     let processed1 = Arc::new(Mutex::new(Vec::new()));
@@ -379,13 +386,13 @@ async fn test_consumer_with_correlation() {
     let test_id = Uuid::new_v4().to_string().replace("-", "");
 
     // Use separate category names for command and account
-    let cmd_category = format!("{}cmd", test_id);  // No hyphen - this is a category
+    let cmd_category = format!("{}cmd", test_id); // No hyphen - this is a category
     let account_category = format!("{}account", test_id);
 
     // Write a command - the correlation will match based on stream ID "abc"
     let cmd_msg = WriteMessage::new(
         Uuid::new_v4(),
-        format!("{}-abc", cmd_category),  // Stream in cmd category with ID "abc"
+        format!("{}-abc", cmd_category), // Stream in cmd category with ID "abc"
         "WithdrawCommand",
     )
     .with_data(json!({ "amount": 50 }));
@@ -400,7 +407,7 @@ async fn test_consumer_with_correlation() {
         "Withdrawn",
     )
     .with_data(json!({ "amount": 50 }))
-    .with_metadata(json!({ "correlation_id": "abc" }));  // Matches command stream ID
+    .with_metadata(json!({ "correlation_id": "abc" })); // Matches command stream ID
 
     // Event2's correlation_id doesn't match any command stream
     let event2 = WriteMessage::new(
@@ -409,7 +416,7 @@ async fn test_consumer_with_correlation() {
         "Withdrawn",
     )
     .with_data(json!({ "amount": 30 }))
-    .with_metadata(json!({ "correlation_id": "xyz" }));  // Doesn't match
+    .with_metadata(json!({ "correlation_id": "xyz" })); // Doesn't match
 
     client.write_message(event1).await.unwrap();
     client.write_message(event2).await.unwrap();
@@ -426,7 +433,10 @@ async fn test_consumer_with_correlation() {
     consumer.on("Withdrawn", move |msg: Message| {
         let processed = Arc::clone(&processed_clone);
         Box::pin(async move {
-            processed.lock().unwrap().push(msg.data["amount"].as_i64().unwrap());
+            processed
+                .lock()
+                .unwrap()
+                .push(msg.data["amount"].as_i64().unwrap());
             Ok(())
         })
     });
@@ -453,7 +463,11 @@ async fn test_consumer_unhandled_message_type() {
 
     // Write messages of different types
     let msg1 = WriteMessage::new(Uuid::new_v4(), format!("{}-account-1", test_id), "Handled");
-    let msg2 = WriteMessage::new(Uuid::new_v4(), format!("{}-account-2", test_id), "NotHandled");
+    let msg2 = WriteMessage::new(
+        Uuid::new_v4(),
+        format!("{}-account-2", test_id),
+        "NotHandled",
+    );
 
     client.write_message(msg1).await.unwrap();
     client.write_message(msg2).await.unwrap();

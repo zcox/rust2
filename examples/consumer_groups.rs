@@ -1,3 +1,5 @@
+use rust2::message_db::consumer::{Consumer, ConsumerConfig};
+use rust2::message_db::types::WriteMessage;
 /// Example: Consumer Groups for Horizontal Scaling
 ///
 /// This example demonstrates consumer groups, which distribute messages across
@@ -12,10 +14,7 @@
 /// To run this example:
 /// 1. Start Message DB: docker-compose up -d
 /// 2. Run: cargo run --example consumer_groups
-
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
-use rust2::message_db::consumer::{Consumer, ConsumerConfig};
-use rust2::message_db::types::WriteMessage;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -27,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to Message DB
     let config = MessageDbConfig::from_connection_string(
-        "postgresql://postgres:message_store_password@localhost:5433/message_store"
+        "postgresql://postgres:message_store_password@localhost:5433/message_store",
     )?;
     let client = MessageDbClient::new(config).await?;
 
@@ -38,7 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let num_accounts = 12;
     let mut account_ids = Vec::new();
 
-    println!("Writing messages to {} different account streams...", num_accounts);
+    println!(
+        "Writing messages to {} different account streams...",
+        num_accounts
+    );
 
     for i in 0..num_accounts {
         let account_id = format!("acc-{:03}", i);
@@ -48,21 +50,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Write a few events to each account
         for j in 0..3 {
             let event_type = if j % 2 == 0 { "Deposited" } else { "Withdrawn" };
-            let event = WriteMessage::new(
-                Uuid::new_v4(),
-                &stream_name,
-                event_type
-            )
-            .with_data(json!({
-                "amount": (j + 1) * 100,
-                "account_id": account_id
-            }));
+            let event =
+                WriteMessage::new(Uuid::new_v4(), &stream_name, event_type).with_data(json!({
+                    "amount": (j + 1) * 100,
+                    "account_id": account_id
+                }));
 
             client.write_message(event).await?;
         }
     }
 
-    println!("✓ Wrote {} events across {} streams\n", num_accounts * 3, num_accounts);
+    println!(
+        "✓ Wrote {} events across {} streams\n",
+        num_accounts * 3,
+        num_accounts
+    );
 
     // 2. Create consumer group with 3 members
     println!("2. Creating consumer group with 3 members");
@@ -76,7 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(Mutex::new(HashMap::new()));
 
     for member_id in 0..group_size {
-        println!("  Creating consumer group member {}/{}", member_id, group_size - 1);
+        println!(
+            "  Creating consumer group member {}/{}",
+            member_id,
+            group_size - 1
+        );
 
         // Configure consumer with consumer group settings
         let consumer_config = ConsumerConfig::new("account", &format!("worker-{}", member_id))
@@ -108,7 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Box::pin(async move {
                 let mut stats = stats.lock().unwrap();
-                stats.entry(member_id_copy)
+                stats
+                    .entry(member_id_copy)
                     .or_insert_with(Vec::new)
                     .push(stream_name);
                 Ok(())
@@ -121,7 +128,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Box::pin(async move {
                 let mut stats = stats.lock().unwrap();
-                stats.entry(member_id_copy)
+                stats
+                    .entry(member_id_copy)
                     .or_insert_with(Vec::new)
                     .push(stream_name);
                 Ok(())
@@ -158,7 +166,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             unique_streams.sort();
             unique_streams.dedup();
 
-            println!("  Worker {}: {} messages from {} unique streams",
+            println!(
+                "  Worker {}: {} messages from {} unique streams",
                 member_id,
                 streams.len(),
                 unique_streams.len()
@@ -174,8 +183,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify all messages were processed
     let total_processed: usize = stats.values().map(|v| v.len()).sum();
-    println!("\nTotal messages processed: {} (expected: {})",
-        total_processed, num_accounts * 3);
+    println!(
+        "\nTotal messages processed: {} (expected: {})",
+        total_processed,
+        num_accounts * 3
+    );
 
     // 5. Demonstrate consistent routing
     println!("\n5. Demonstrating consistent routing");
@@ -194,10 +206,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let stream_name = format!("account-{}", account_id);
 
         // Determine which worker processes this stream
-        let worker_id = stats.iter()
-            .find(|(_worker_id, streams)| {
-                streams.iter().any(|s| s == &stream_name)
-            })
+        let worker_id = stats
+            .iter()
+            .find(|(_worker_id, streams)| streams.iter().any(|s| s == &stream_name))
             .map(|(id, _)| id);
 
         if let Some(worker_id) = worker_id {

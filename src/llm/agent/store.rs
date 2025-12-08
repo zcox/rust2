@@ -281,7 +281,11 @@ impl ThreadStore {
     pub async fn get_stream_version(&self, thread_id: &str) -> Result<Option<i64>> {
         let stream_name = thread_stream_name(thread_id);
 
-        match self.client.get_last_stream_message(&stream_name, None).await {
+        match self
+            .client
+            .get_last_stream_message(&stream_name, None)
+            .await
+        {
             Ok(Some(msg)) => Ok(Some(msg.position)),
             Ok(None) => Ok(None),
             Err(e) => Err(e),
@@ -357,7 +361,10 @@ mod tests {
 
         let write_msg = event.to_write_message("thread:v0-abc", Some(metadata.clone()));
 
-        assert_eq!(write_msg.metadata.as_ref().unwrap()["correlation_id"], "corr-123");
+        assert_eq!(
+            write_msg.metadata.as_ref().unwrap()["correlation_id"],
+            "corr-123"
+        );
         assert_eq!(write_msg.metadata.as_ref().unwrap()["user_id"], "user-456");
     }
 }

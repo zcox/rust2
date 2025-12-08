@@ -163,9 +163,7 @@ impl Agent {
     }
 
     /// Create the agent event stream
-    fn create_agent_stream(
-        &mut self,
-    ) -> impl Stream<Item = Result<AgentEvent, AgentError>> + '_ {
+    fn create_agent_stream(&mut self) -> impl Stream<Item = Result<AgentEvent, AgentError>> + '_ {
         stream! {
             let mut iteration = 0;
 
@@ -224,9 +222,9 @@ impl Agent {
                                 ContentBlockStart::Text { text } => {
                                     text_content.push_str(text);
                                 }
-                                ContentBlockStart::ToolUse { id, name } => {
+                                ContentBlockStart::ToolCall { tool_call_id, name } => {
                                     current_tool_use = Some(PartialToolUseAccumulator {
-                                        id: id.clone(),
+                                        id: tool_call_id.clone(),
                                         name: name.clone(),
                                         input: String::new(),
                                     });
@@ -238,7 +236,7 @@ impl Agent {
                                 ContentDelta::TextDelta { text } => {
                                     text_content.push_str(text);
                                 }
-                                ContentDelta::ToolUseDelta { partial } => {
+                                ContentDelta::ToolCallDelta { partial } => {
                                     if let Some(tool_use) = &mut current_tool_use {
                                         tool_use.input.push_str(&partial.partial_json);
                                     }
@@ -250,8 +248,8 @@ impl Agent {
                                 // Parse complete tool use
                                 match serde_json::from_str(&tool_use.input) {
                                     Ok(input) => {
-                                        tool_uses.push(ContentBlock::ToolUse {
-                                            id: tool_use.id,
+                                        tool_uses.push(ContentBlock::ToolCall {
+                                            tool_call_id: tool_use.id,
                                             name: tool_use.name,
                                             input,
                                         });
@@ -302,39 +300,39 @@ impl Agent {
 
                 // Execute tools and add results to history
                 for block in &tool_uses {
-                    if let ContentBlock::ToolUse { id, name, input } = block {
+                    if let ContentBlock::ToolCall { tool_call_id, name, input } = block {
                         // Emit tool execution started
                         yield Ok(AgentEvent::ToolExecutionStarted {
-                            tool_use_id: id.clone(),
+                            tool_use_id: tool_call_id.clone(),
                             name: name.clone(),
                             input: input.clone(),
                         });
 
                         // Execute the tool
                         match self.tool_executor.execute(
-                            id.clone(),
+                            tool_call_id.clone(),
                             name.clone(),
                             input.clone(),
                         ).await {
                             Ok(result) => {
                                 yield Ok(AgentEvent::ToolExecutionCompleted {
-                                    tool_use_id: id.clone(),
+                                    tool_use_id: tool_call_id.clone(),
                                     name: name.clone(),
                                     result: result.clone(),
                                 });
 
                                 // Add tool result to history
-                                self.messages.push(Message::tool_result(id.clone(), result));
+                                self.messages.push(Message::tool_result(tool_call_id.clone(), result));
                             }
                             Err(error) => {
                                 yield Ok(AgentEvent::ToolExecutionFailed {
-                                    tool_use_id: id.clone(),
+                                    tool_use_id: tool_call_id.clone(),
                                     name: name.clone(),
                                     error: error.clone(),
                                 });
 
                                 // Add tool error to history
-                                self.messages.push(Message::tool_error(id.clone(), error));
+                                self.messages.push(Message::tool_error(tool_call_id.clone(), error));
                             }
                         }
                     }
@@ -344,7 +342,6 @@ impl Agent {
             }
         }
     }
-
 }
 
 #[cfg(test)]
@@ -375,9 +372,7 @@ mod tests {
             }
 
             let events = self.responses[index].clone();
-            Ok(Box::pin(futures::stream::iter(
-                events.into_iter().map(Ok),
-            )))
+            Ok(Box::pin(futures::stream::iter(events.into_iter().map(Ok))))
         }
 
         fn provider_name(&self) -> &str {

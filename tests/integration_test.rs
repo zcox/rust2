@@ -61,7 +61,10 @@ async fn test_connection_pool_exhaustion_and_recovery() {
 #[tokio::test]
 async fn test_invalid_connection_string() {
     let result = MessageDbConfig::from_connection_string("invalid://connection/string");
-    assert!(result.is_err(), "Should fail with invalid connection string");
+    assert!(
+        result.is_err(),
+        "Should fail with invalid connection string"
+    );
 }
 
 #[tokio::test]

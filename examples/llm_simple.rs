@@ -12,7 +12,6 @@
 ///    GCP_PROJECT_ID=your-project-id
 ///    GCP_LOCATION=us-central1
 /// 3. Run: cargo run --example llm_simple
-
 use futures::StreamExt;
 use rust2::llm::{
     create_provider, ClaudeModel, GenerateRequest, GenerationConfig, Message, Model, StreamEvent,
@@ -44,12 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the LLM provider
     println!("Creating provider...");
-    let provider = create_provider(
-        Model::Claude(ClaudeModel::Sonnet45),
-        project_id,
-        location,
-    )
-    .await?;
+    let provider =
+        create_provider(Model::Claude(ClaudeModel::Sonnet45), project_id, location).await?;
     println!("✓ Provider created successfully\n");
 
     // Create a simple request
@@ -76,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(event) = stream.next().await {
         match event? {
             StreamEvent::MessageStart { message } => {
-                println!("[Message started - ID: {}]", message.id);
+                println!("[Message started - ID: {}]", message.message_id);
             }
             StreamEvent::ContentBlockStart { index, block } => {
                 println!("[Content block {} started]", index);

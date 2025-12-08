@@ -25,8 +25,8 @@
 
 use futures::StreamExt;
 use rust2::llm::{
-    create_provider, Agent, AgentEvent, ClaudeModel, ContentDelta,
-    GenerationConfig, Model, StreamEvent, FunctionRegistry,
+    create_provider, Agent, AgentEvent, ClaudeModel, ContentDelta, FunctionRegistry,
+    GenerationConfig, Model, StreamEvent,
 };
 use rust2_tool_macros::tool;
 use schemars::JsonSchema;
@@ -108,12 +108,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating LLM provider...");
 
     // Set up LLM provider (using Claude Haiku for speed)
-    let provider = create_provider(
-        Model::Claude(ClaudeModel::Haiku45),
-        project_id,
-        location,
-    )
-    .await?;
+    let provider =
+        create_provider(Model::Claude(ClaudeModel::Haiku45), project_id, location).await?;
 
     println!("Setting up tools...");
 
@@ -218,13 +214,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rust2::llm::ContentBlock::Text { text } => {
                     println!("   [{}] Text: {}", j, text);
                 }
-                rust2::llm::ContentBlock::ToolUse { id, name, input } => {
-                    println!("   [{}] Tool Use: {} (id: {})", j, name, id);
-                    println!("       Args: {}", serde_json::to_string_pretty(input).unwrap());
+                rust2::llm::ContentBlock::ToolCall { tool_call_id, name, input } => {
+                    println!("   [{}] Tool Call: {} (id: {})", j, name, tool_call_id);
+                    println!(
+                        "       Args: {}",
+                        serde_json::to_string_pretty(input).unwrap()
+                    );
                 }
-                rust2::llm::ContentBlock::ToolResult { tool_use_id, content, is_error } => {
+                rust2::llm::ContentBlock::ToolResult {
+                    tool_call_id,
+                    content,
+                    is_error,
+                } => {
                     let status = if *is_error { "Error" } else { "Result" };
-                    println!("   [{}] Tool {}: (id: {})", j, status, tool_use_id);
+                    println!("   [{}] Tool {}: (id: {})", j, status, tool_call_id);
                     println!("       {}", content);
                 }
             }

@@ -88,9 +88,7 @@ pub struct ClaudeTool {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClaudeStreamEvent {
     /// Message streaming started
-    MessageStart {
-        message: ClaudeMessageData,
-    },
+    MessageStart { message: ClaudeMessageData },
     /// Content block started
     ContentBlockStart {
         index: usize,
@@ -102,9 +100,7 @@ pub enum ClaudeStreamEvent {
         delta: ClaudeContentDelta,
     },
     /// Content block stopped
-    ContentBlockStop {
-        index: usize,
-    },
+    ContentBlockStop { index: usize },
     /// Message delta (metadata update)
     MessageDelta {
         delta: ClaudeMessageDeltaData,
@@ -115,9 +111,7 @@ pub enum ClaudeStreamEvent {
     /// Ping event (keep-alive)
     Ping,
     /// Error event
-    Error {
-        error: ClaudeErrorData,
-    },
+    Error { error: ClaudeErrorData },
 }
 
 /// Message data from message_start event
@@ -148,14 +142,9 @@ pub struct ClaudeMessageData {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClaudeContentBlockStart {
     /// Text block starting
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// Tool use block starting
-    ToolUse {
-        id: String,
-        name: String,
-    },
+    ToolUse { id: String, name: String },
 }
 
 /// Content delta (incremental update)
@@ -163,13 +152,9 @@ pub enum ClaudeContentBlockStart {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClaudeContentDelta {
     /// Text delta
-    TextDelta {
-        text: String,
-    },
+    TextDelta { text: String },
     /// Input JSON delta (for tool use arguments)
-    InputJsonDelta {
-        partial_json: String,
-    },
+    InputJsonDelta { partial_json: String },
 }
 
 /// Message delta data

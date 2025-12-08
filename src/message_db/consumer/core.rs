@@ -1,8 +1,5 @@
 use crate::message_db::{
-    consumer::PositionTracker,
-    error::Result,
-    operations::CategoryReadOptions,
-    types::Message,
+    consumer::PositionTracker, error::Result, operations::CategoryReadOptions, types::Message,
     MessageDbClient,
 };
 use std::collections::HashMap;
@@ -15,9 +12,8 @@ use tokio::time;
 /// Type alias for message handler functions
 ///
 /// Handlers are async functions that take a message and return a Result.
-pub type MessageHandler = Arc<
-    dyn Fn(Message) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send + Sync,
->;
+pub type MessageHandler =
+    Arc<dyn Fn(Message) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send + Sync>;
 
 /// Configuration for a consumer
 #[derive(Debug, Clone)]
@@ -253,7 +249,8 @@ impl Consumer {
     where
         F: Fn(Message) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send + Sync + 'static,
     {
-        self.handlers.insert(message_type.to_string(), Arc::new(handler));
+        self.handlers
+            .insert(message_type.to_string(), Arc::new(handler));
     }
 
     /// Start consuming messages
@@ -338,7 +335,10 @@ impl Consumer {
             options = options.with_correlation(correlation);
         }
 
-        if let (Some(member), Some(size)) = (self.config.consumer_group_member, self.config.consumer_group_size) {
+        if let (Some(member), Some(size)) = (
+            self.config.consumer_group_member,
+            self.config.consumer_group_size,
+        ) {
             options = options.with_consumer_group(member, size);
         }
 
@@ -375,7 +375,9 @@ impl Consumer {
 
         // Update position to the next position to read (global_position + 1)
         // This is because get_category_messages reads from position inclusive
-        self.position_tracker.update_position(global_position + 1).await?;
+        self.position_tracker
+            .update_position(global_position + 1)
+            .await?;
 
         Ok(())
     }

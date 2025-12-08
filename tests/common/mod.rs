@@ -16,7 +16,9 @@ pub const POSTGRES_DB: &str = "message_store";
 pub fn create_message_db_container() -> RunnableImage<GenericImage> {
     let image = GenericImage::new(MESSAGE_DB_IMAGE, MESSAGE_DB_TAG)
         .with_env_var("POSTGRES_PASSWORD", POSTGRES_PASSWORD)
-        .with_wait_for(WaitFor::message_on_stderr("database system is ready to accept connections"));
+        .with_wait_for(WaitFor::message_on_stderr(
+            "database system is ready to accept connections",
+        ));
 
     RunnableImage::from(image).with_tag(MESSAGE_DB_TAG)
 }

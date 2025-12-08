@@ -318,9 +318,9 @@ impl TryFrom<ThreadEvent> for AgentEvent {
                 name: data.name,
                 error: data.error,
             }),
-            ThreadEvent::AgentIterationStarted(data) => {
-                Ok(AgentEvent::IterationStarted { iteration: data.iteration })
-            }
+            ThreadEvent::AgentIterationStarted(data) => Ok(AgentEvent::IterationStarted {
+                iteration: data.iteration,
+            }),
             ThreadEvent::AgentCompleted(_) => Ok(AgentEvent::Completed),
             // These events are internal and should not be streamed
             ThreadEvent::LlmCallStarted(_)
@@ -562,7 +562,10 @@ mod tests {
 
         let json = serde_json::to_value(&event).unwrap();
         assert_eq!(json["type"], "ToolExecutionCompleted");
-        assert_eq!(json["result"], r#"{"temperature": 18, "conditions": "partly cloudy"}"#);
+        assert_eq!(
+            json["result"],
+            r#"{"temperature": 18, "conditions": "partly cloudy"}"#
+        );
 
         let deserialized: ThreadEvent = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized, event);
@@ -710,7 +713,10 @@ mod tests {
         let write_msg = event.to_write_message("thread:v0-abc", Some(metadata.clone()));
 
         assert_eq!(write_msg.message_type, "AgentIterationStarted");
-        assert_eq!(write_msg.metadata.as_ref().unwrap()["correlation_id"], "corr-123");
+        assert_eq!(
+            write_msg.metadata.as_ref().unwrap()["correlation_id"],
+            "corr-123"
+        );
         assert_eq!(write_msg.metadata.as_ref().unwrap()["user_id"], "user-456");
     }
 
@@ -727,7 +733,10 @@ mod tests {
         });
 
         let agent_event: AgentEvent = thread_event.try_into().unwrap();
-        assert_eq!(agent_event, AgentEvent::UserMessage("Test message".to_string()));
+        assert_eq!(
+            agent_event,
+            AgentEvent::UserMessage("Test message".to_string())
+        );
     }
 
     #[test]
@@ -866,7 +875,10 @@ mod tests {
     #[test]
     fn test_thread_stream_name() {
         let stream_name = thread_stream_name("550e8400-e29b-41d4-a716-446655440000");
-        assert_eq!(stream_name, "thread:v0-550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            stream_name,
+            "thread:v0-550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 
     #[test]

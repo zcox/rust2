@@ -6,20 +6,23 @@ use crate::llm::core::{
     config::GenerationConfig,
     types::{
         ContentBlock, ContentBlockStart, ContentDelta, FinishReason, GenerateRequest, Message,
-        MessageMetadata, MessageRole, PartialToolUse, StreamEvent, ToolDeclaration, UsageMetadata,
+        MessageMetadata, MessageRole, PartialToolCall, StreamEvent, ToolDeclaration, UsageMetadata,
     },
 };
 
 use super::types::{
-    Content, FunctionCall, FunctionDeclaration, FunctionResponse,
-    GeminiGenerationConfig, GenerateContentRequest, GenerateContentResponse, Part,
-    SystemInstruction, Tool,
+    Content, FunctionCall, FunctionDeclaration, FunctionResponse, GeminiGenerationConfig,
+    GenerateContentRequest, GenerateContentResponse, Part, SystemInstruction, Tool,
 };
 
 /// Convert our abstraction request to Gemini's request format
 pub fn to_gemini_request(request: GenerateRequest) -> GenerateContentRequest {
     GenerateContentRequest {
-        contents: request.messages.into_iter().map(to_gemini_content).collect(),
+        contents: request
+            .messages
+            .into_iter()
+            .map(to_gemini_content)
+            .collect(),
         system_instruction: request.system.map(|s| SystemInstruction {
             parts: vec![Part::Text { text: s }],
         }),
@@ -28,7 +31,10 @@ pub fn to_gemini_request(request: GenerateRequest) -> GenerateContentRequest {
                 None
             } else {
                 Some(vec![Tool {
-                    function_declarations: tools.into_iter().map(to_gemini_function_declaration).collect(),
+                    function_declarations: tools
+                        .into_iter()
+                        .map(to_gemini_function_declaration)
+                        .collect(),
                 }])
             }
         }),
@@ -45,11 +51,7 @@ fn to_gemini_content(message: Message) -> Content {
         MessageRole::Tool => "user".to_string(),
     };
 
-    let parts = message
-        .content
-        .into_iter()
-        .map(to_gemini_part)
-        .collect();
+    let parts = message.content.into_iter().map(to_gemini_part).collect();
 
     Content { role, parts }
 }
@@ -58,17 +60,18 @@ fn to_gemini_content(message: Message) -> Content {
 fn to_gemini_part(block: ContentBlock) -> Part {
     match block {
         ContentBlock::Text { text } => Part::Text { text },
-        ContentBlock::ToolUse { id: _, name, input } => {
-            // Note: Gemini doesn't use tool_use_id in the request, it's only in responses
+        ContentBlock::ToolCall {
+            tool_call_id: _,
+            name,
+            input,
+        } => {
+            // Note: Gemini doesn't use tool_call_id in the request, it's only in responses
             Part::FunctionCall {
-                function_call: FunctionCall {
-                    name,
-                    args: input,
-                },
+                function_call: FunctionCall { name, args: input },
             }
         }
         ContentBlock::ToolResult {
-            tool_use_id: _,
+            tool_call_id: _,
             content,
             is_error,
         } => {
@@ -153,8 +156,8 @@ pub fn from_gemini_response(
                 // First time seeing this function call at this index
                 events.push(StreamEvent::ContentBlockStart {
                     index: *current_index,
-                    block: ContentBlockStart::ToolUse {
-                        id: Uuid::new_v4().to_string(), // Generate ID since Gemini doesn't provide one
+                    block: ContentBlockStart::ToolCall {
+                        tool_call_id: Uuid::new_v4().to_string(), // Generate ID since Gemini doesn't provide one
                         name: function_call.name.clone(),
                     },
                 });
@@ -162,9 +165,9 @@ pub fn from_gemini_response(
                 // Emit the complete arguments as a delta
                 events.push(StreamEvent::ContentDelta {
                     index: *current_index,
-                    delta: ContentDelta::ToolUseDelta {
-                        partial: PartialToolUse {
-                            id: None,
+                    delta: ContentDelta::ToolCallDelta {
+                        partial: PartialToolCall {
+                            tool_call_id: None,
                             name: Some(function_call.name.clone()),
                             partial_json: function_call.args.to_string(),
                         },
@@ -228,7 +231,7 @@ fn map_finish_reason(reason: &str) -> FinishReason {
 pub fn create_message_start(message_id: String) -> StreamEvent {
     StreamEvent::MessageStart {
         message: MessageMetadata {
-            id: message_id,
+            message_id,
             role: MessageRole::Assistant,
             usage: None,
         },
@@ -354,7 +357,10 @@ mod tests {
         let events = from_gemini_response(response, &mut index);
         assert_eq!(events.len(), 2); // Delta + MessageEnd
         match &events[1] {
-            StreamEvent::MessageEnd { finish_reason, usage } => {
+            StreamEvent::MessageEnd {
+                finish_reason,
+                usage,
+            } => {
                 assert_eq!(*finish_reason, FinishReason::Stop);
                 assert_eq!(usage.total_tokens, 15);
             }

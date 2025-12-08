@@ -118,12 +118,7 @@ pub fn get_category_types(stream_name: &str) -> Vec<String> {
     let cat = category(stream_name);
 
     cat.find(':')
-        .map(|pos| {
-            cat[pos + 1..]
-                .split('+')
-                .map(|s| s.to_string())
-                .collect()
-        })
+        .map(|pos| cat[pos + 1..].split('+').map(|s| s.to_string()).collect())
         .unwrap_or_default()
 }
 
@@ -162,10 +157,7 @@ mod tests {
         assert_eq!(id("account"), None);
         assert_eq!(id("account:command-123"), Some("123".to_string()));
         assert_eq!(id("account:v0-streamId"), Some("streamId".to_string()));
-        assert_eq!(
-            id("transaction:event+audit-xyz"),
-            Some("xyz".to_string())
-        );
+        assert_eq!(id("transaction:event+audit-xyz"), Some("xyz".to_string()));
         assert_eq!(id("account:command"), None);
     }
 
@@ -215,10 +207,7 @@ mod tests {
 
     #[test]
     fn test_get_category_types() {
-        assert_eq!(
-            get_category_types("account-123"),
-            Vec::<String>::new()
-        );
+        assert_eq!(get_category_types("account-123"), Vec::<String>::new());
         assert_eq!(
             get_category_types("account:command-123"),
             vec!["command".to_string()]
@@ -233,7 +222,11 @@ mod tests {
         );
         assert_eq!(
             get_category_types("order:snapshot+v2+compressed"),
-            vec!["snapshot".to_string(), "v2".to_string(), "compressed".to_string()]
+            vec![
+                "snapshot".to_string(),
+                "v2".to_string(),
+                "compressed".to_string()
+            ]
         );
         assert_eq!(get_category_types("account"), Vec::<String>::new());
         assert_eq!(
