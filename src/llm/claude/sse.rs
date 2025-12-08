@@ -12,7 +12,7 @@ use super::types::ClaudeStreamEvent;
 /// Parse a stream of bytes as Claude SSE events
 ///
 /// Claude's SSE format uses:
-/// ```
+/// ```text
 /// event: message_start
 /// data: {"type":"message_start",...}
 ///

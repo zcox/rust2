@@ -60,8 +60,8 @@ struct PartialToolUseAccumulator {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // Set up dependencies (provider, executor, store)
-///     # let provider: Box<dyn rust2::llm::core::provider::LlmProvider> = todo!();
-///     # let executor: Box<dyn rust2::llm::tools::executor::ToolExecutor> = todo!();
+///     # let provider: std::sync::Arc<dyn rust2::llm::core::provider::LlmProvider> = todo!();
+///     # let executor: std::sync::Arc<dyn rust2::llm::tools::executor::ToolExecutor> = todo!();
 ///     # let config = MessageDbConfig::from_connection_string("postgresql://postgres:password@localhost:5433/message_store")?;
 ///     # let client = MessageDbClient::new(config).await?;
 ///     # let store = rust2::llm::agent::ThreadStore::new(client);
