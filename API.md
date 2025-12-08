@@ -29,7 +29,7 @@ Retrieves the complete conversation history for a given thread.
   "thread_id": "550e8400-e29b-41d4-a716-446655440000",
   "messages": [
     {
-      "id": "msg_1",
+      "message_id": "msg_1",
       "message_type": "user",
       "timestamp": "2024-01-15T10:30:00Z",
       "content": {
@@ -38,7 +38,7 @@ Retrieves the complete conversation history for a given thread.
       }
     },
     {
-      "id": "msg_2",
+      "message_id": "msg_2",
       "message_type": "agent",
       "timestamp": "2024-01-15T10:30:01Z",
       "content": {
@@ -47,11 +47,12 @@ Retrieves the complete conversation history for a given thread.
       }
     },
     {
-      "id": "msg_3",
-      "message_type": "toolresponse",
+      "message_id": "msg_3",
+      "message_type": "tool_result",
       "timestamp": "2024-01-15T10:30:02Z",
       "content": {
-        "type": "tool_response",
+        "type": "tool_result",
+        "tool_result_id": "result-toolu_01234",
         "tool_call_id": "toolu_01234",
         "result": {
           "temperature": 72,
@@ -109,13 +110,14 @@ Streamed text chunks from the agent's response.
 
 ```
 event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":"I'll check"}
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_1","chunk":"I'll check"}
 ```
 
 **Data Schema:**
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message_id": "msg_1",
   "chunk": "text fragment"
 }
 ```
@@ -126,13 +128,13 @@ Indicates the agent is calling a tool.
 
 ```
 event: tool_call
-data: {"id":"toolu_01234","tool_name":"get_weather","arguments":{"location":"NYC"}}
+data: {"tool_call_id":"toolu_01234","tool_name":"get_weather","arguments":{"location":"NYC"}}
 ```
 
 **Data Schema:**
 ```json
 {
-  "id": "toolu_01234",
+  "tool_call_id": "toolu_01234",
   "tool_name": "get_weather",
   "arguments": {
     "location": "NYC"
@@ -140,19 +142,19 @@ data: {"id":"toolu_01234","tool_name":"get_weather","arguments":{"location":"NYC
 }
 ```
 
-##### 3. `tool_response`
+##### 3. `tool_result`
 
 The result from a tool execution.
 
 ```
-event: tool_response
-data: {"id":"response-toolu_01234","tool_call_id":"toolu_01234","result":{"temperature":72,"condition":"sunny"}}
+event: tool_result
+data: {"tool_result_id":"result-toolu_01234","tool_call_id":"toolu_01234","result":{"temperature":72,"condition":"sunny"}}
 ```
 
 **Data Schema:**
 ```json
 {
-  "id": "response-toolu_01234",
+  "tool_result_id": "result-toolu_01234",
   "tool_call_id": "toolu_01234",
   "result": {
     "temperature": 72,
@@ -164,7 +166,7 @@ data: {"id":"response-toolu_01234","tool_call_id":"toolu_01234","result":{"tempe
 **Error Response:**
 ```json
 {
-  "id": "error-toolu_01234",
+  "tool_result_id": "error-toolu_01234",
   "tool_call_id": "toolu_01234",
   "result": {
     "error": "Tool execution failed",
@@ -203,25 +205,25 @@ curl -X POST http://localhost:3030/api/v1/threads/550e8400-e29b-41d4-a716-446655
 
 ```
 event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":"I'll "}
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_1","chunk":"I'll "}
 
 event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":"check "}
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_1","chunk":"check "}
 
 event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":"the weather"}
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_1","chunk":"the weather"}
 
 event: tool_call
-data: {"id":"toolu_01234","tool_name":"get_weather","arguments":{"location":"current"}}
+data: {"tool_call_id":"toolu_01234","tool_name":"get_weather","arguments":{"location":"current"}}
 
-event: tool_response
-data: {"id":"response-toolu_01234","tool_call_id":"toolu_01234","result":{"temperature":72,"condition":"sunny"}}
-
-event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":"It's currently"}
+event: tool_result
+data: {"tool_result_id":"result-toolu_01234","tool_call_id":"toolu_01234","result":{"temperature":72,"condition":"sunny"}}
 
 event: agent_text
-data: {"id":"550e8400-e29b-41d4-a716-446655440000","chunk":" 72°F and sunny."}
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_2","chunk":"It's currently"}
+
+event: agent_text
+data: {"thread_id":"550e8400-e29b-41d4-a716-446655440000","message_id":"msg_2","chunk":" 72°F and sunny."}
 
 event: done
 data: {}
@@ -237,8 +239,8 @@ Represents a single message in a conversation thread.
 
 ```typescript
 interface Message {
-  id: string;
-  message_type: "user" | "agent" | "toolcall" | "toolresponse";
+  message_id: string;
+  message_type: "user" | "agent" | "tool_call" | "tool_result";
   timestamp: string; // ISO 8601 datetime
   content: MessageContent;
 }
@@ -252,8 +254,8 @@ Tagged union representing different message content types.
 type MessageContent =
   | { type: "user"; text: string }
   | { type: "agent"; text: string }
-  | { type: "tool_call"; tool_name: string; arguments: object }
-  | { type: "tool_response"; tool_call_id: string; result: object };
+  | { type: "tool_call"; tool_call_id: string; tool_name: string; arguments: object }
+  | { type: "tool_result"; tool_result_id: string; tool_call_id: string; result: object };
 ```
 
 ### ThreadResponse
@@ -319,7 +321,7 @@ async function sendMessage(threadId: string, text: string) {
           case 'tool_call':
             console.log('Calling tool:', data.tool_name);
             break;
-          case 'tool_response':
+          case 'tool_result':
             console.log('Tool result:', data.result);
             break;
           case 'done':
@@ -366,7 +368,7 @@ def send_message(thread_id: str, text: str):
             print(f"Agent: {data['chunk']}", end='', flush=True)
         elif event.event == 'tool_call':
             print(f"\nCalling tool: {data['tool_name']}")
-        elif event.event == 'tool_response':
+        elif event.event == 'tool_result':
             print(f"Tool result: {data['result']}")
         elif event.event == 'done':
             print("\nStream complete")

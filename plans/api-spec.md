@@ -29,8 +29,8 @@ Retrieve all messages in a conversation thread.
   "threadId": "uuid",
   "messages": [
     {
-      "id": "string",
-      "type": "user" | "agent" | "tool_call" | "tool_response",
+      "message_id": "string",
+      "type": "user" | "agent" | "tool_call" | "tool_result",
       "timestamp": "ISO 8601 string",
       "content": "varies by type"
     }
@@ -43,7 +43,7 @@ Retrieve all messages in a conversation thread.
 1. **User Message**
 ```json
 {
-  "id": "string",
+  "message_id": "string",
   "type": "user",
   "timestamp": "2025-11-19T10:30:00Z",
   "content": {
@@ -55,7 +55,7 @@ Retrieve all messages in a conversation thread.
 2. **Agent Message**
 ```json
 {
-  "id": "string",
+  "message_id": "string",
   "type": "agent",
   "timestamp": "2025-11-19T10:30:01Z",
   "content": {
@@ -67,24 +67,26 @@ Retrieve all messages in a conversation thread.
 3. **Tool Call**
 ```json
 {
-  "id": "string",
+  "message_id": "string",
   "type": "tool_call",
   "timestamp": "2025-11-19T10:30:02Z",
   "content": {
+    "tool_call_id": "string",
     "toolName": "string",
     "arguments": {}
   }
 }
 ```
 
-4. **Tool Response**
+4. **Tool Result**
 ```json
 {
-  "id": "string",
-  "type": "tool_response",
+  "message_id": "string",
+  "type": "tool_result",
   "timestamp": "2025-11-19T10:30:03Z",
   "content": {
-    "toolCallId": "string",
+    "tool_result_id": "string",
+    "tool_call_id": "string",
     "result": {}
   }
 }
@@ -122,19 +124,19 @@ The server streams events containing chunks of the agent response. A single resp
 1. **Agent Text Chunk**
 ```
 event: agent_text
-data: {"id": "string", "chunk": "string"}
+data: {"thread_id": "string", "message_id": "string", "chunk": "string"}
 ```
 
 2. **Tool Call**
 ```
 event: tool_call
-data: {"id": "string", "toolName": "string", "arguments": {}}
+data: {"tool_call_id": "string", "toolName": "string", "arguments": {}}
 ```
 
-3. **Tool Response**
+3. **Tool Result**
 ```
-event: tool_response
-data: {"id": "string", "toolCallId": "string", "result": {}}
+event: tool_result
+data: {"tool_result_id": "string", "tool_call_id": "string", "result": {}}
 ```
 
 4. **Stream End**
@@ -146,28 +148,28 @@ data: {}
 **Example SSE Stream:**
 ```
 event: agent_text
-data: {"id": "msg_1", "chunk": "Let me"}
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_1", "chunk": "Let me"}
 
 event: agent_text
-data: {"id": "msg_1", "chunk": " look that"}
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_1", "chunk": " look that"}
 
 event: agent_text
-data: {"id": "msg_1", "chunk": " up for you"}
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_1", "chunk": " up for you"}
 
 event: tool_call
-data: {"id": "msg_2", "toolName": "lookup", "arguments": {"id": 123}}
+data: {"tool_call_id": "toolu_123", "toolName": "lookup", "arguments": {"id": 123}}
 
-event: tool_response
-data: {"id": "msg_3", "toolCallId": "msg_2", "result": "foo bar"}
-
-event: agent_text
-data: {"id": "msg_4", "chunk": "The answer"}
+event: tool_result
+data: {"tool_result_id": "result-toolu_123", "tool_call_id": "toolu_123", "result": "foo bar"}
 
 event: agent_text
-data: {"id": "msg_4", "chunk": " is"}
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_4", "chunk": "The answer"}
 
 event: agent_text
-data: {"id": "msg_4", "chunk": " foo bar"}
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_4", "chunk": " is"}
+
+event: agent_text
+data: {"thread_id": "550e8400-e29b-41d4-a716-446655440000", "message_id": "msg_4", "chunk": " foo bar"}
 
 event: done
 data: {}
@@ -209,4 +211,4 @@ All endpoints may return the following error responses:
 - All chunks for the same message share the same ID
 - Timestamps follow ISO 8601 format
 - SSE connections should implement proper timeout and reconnection handling
-- Only agent text is streamed as chunks; tool calls and tool responses are sent as complete JSON objects
+- Only agent text is streamed as chunks; tool calls and tool results are sent as complete JSON objects
