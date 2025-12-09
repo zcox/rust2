@@ -1,6 +1,9 @@
 use rust2::llm::agent::{EventSourcedAgent, ThreadStore};
-use rust2::llm::core::{config::GenerationConfig, provider::LlmProvider};
-use rust2::llm::gemini::{GeminiClient, GeminiModel};
+use rust2::llm::core::{
+    config::GenerationConfig,
+    provider::{create_provider, LlmProvider},
+    types::Model,
+};
 use rust2::llm::tools::executor::ToolExecutor;
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use rust2::routes::configure_routes;
@@ -54,21 +57,30 @@ async fn main() {
     let thread_store = ThreadStore::new(db_client);
     println!("✓ Created ThreadStore");
 
-    // 3. Create LLM provider (Gemini 2.5 Flash)
+    // 3. Create LLM provider
     let project_id =
         std::env::var("GCP_PROJECT_ID").expect("GCP_PROJECT_ID environment variable not set");
     let location = std::env::var("GCP_LOCATION").unwrap_or_else(|_| "us-central1".to_string());
+    let model_name =
+        std::env::var("MODEL_NAME").unwrap_or_else(|_| "gemini-2.5-flash".to_string());
 
     println!(
-        "Creating Gemini client (project: {}, location: {})...",
-        project_id, location
+        "Creating LLM provider (model: {}, project: {}, location: {})...",
+        model_name, project_id, location
     );
-    let gemini_client = GeminiClient::new(project_id, location, GeminiModel::Gemini25Flash)
-        .await
-        .expect("Failed to create Gemini client");
 
-    let llm_provider: Arc<dyn LlmProvider> = Arc::new(gemini_client);
-    println!("✓ Created LLM provider (Gemini 2.5 Flash)");
+    let model = Model::from_str(&model_name).unwrap_or_else(|e| {
+        eprintln!("Error parsing model name: {}", e);
+        std::process::exit(1);
+    });
+
+    let llm_provider: Arc<dyn LlmProvider> = Arc::from(
+        create_provider(model, project_id, location)
+            .await
+            .expect("Failed to create LLM provider"),
+    );
+
+    println!("✓ Created LLM provider ({})", model_name);
 
     // 4. Create tool executor (mock for now)
     let tool_executor: Arc<dyn ToolExecutor> = Arc::new(MockToolExecutor);

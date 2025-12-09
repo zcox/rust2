@@ -249,6 +249,48 @@ impl Model {
             Model::Gemini(model) => model.as_str(),
         }
     }
+
+    /// Parse a model identifier string into a Model enum
+    ///
+    /// # Arguments
+    ///
+    /// * `model_id` - Model identifier string (e.g., "claude-sonnet-4-5@20250929", "gemini-2.5-flash")
+    ///
+    /// # Returns
+    ///
+    /// Returns the corresponding Model variant, or an error if the model ID is not recognized
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust2::llm::core::types::Model;
+    ///
+    /// let model = Model::from_str("gemini-2.5-flash").unwrap();
+    /// let model = Model::from_str("claude-sonnet-4-5@20250929").unwrap();
+    /// ```
+    pub fn from_str(model_id: &str) -> Result<Self, String> {
+        match model_id {
+            // Claude models
+            "claude-sonnet-4-5@20250929" | "claude-sonnet-4.5" | "sonnet-4.5" | "sonnet45" => {
+                Ok(Model::Claude(ClaudeModel::Sonnet45))
+            }
+            "claude-haiku-4-5@20251001" | "claude-haiku-4.5" | "haiku-4.5" | "haiku45" => {
+                Ok(Model::Claude(ClaudeModel::Haiku45))
+            }
+            // Gemini models
+            "gemini-2.5-pro" | "gemini-pro" => Ok(Model::Gemini(GeminiModel::Gemini25Pro)),
+            "gemini-2.5-flash" | "gemini-flash" => Ok(Model::Gemini(GeminiModel::Gemini25Flash)),
+            "gemini-2.5-flash-lite" | "gemini-flash-lite" => {
+                Ok(Model::Gemini(GeminiModel::Gemini25FlashLite))
+            }
+            _ => Err(format!(
+                "Unknown model: '{}'. Supported models:\n\
+                 Claude: claude-sonnet-4-5@20250929, claude-haiku-4-5@20251001\n\
+                 Gemini: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite",
+                model_id
+            )),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -423,5 +465,49 @@ mod tests {
         let reason = FinishReason::ToolUse;
         let json = serde_json::to_string(&reason).unwrap();
         assert_eq!(json, "\"tool_use\"");
+    }
+
+    #[test]
+    fn test_model_from_str_claude() {
+        // Full model IDs
+        let model = Model::from_str("claude-sonnet-4-5@20250929").unwrap();
+        assert_eq!(model.as_str(), "claude-sonnet-4-5@20250929");
+
+        let model = Model::from_str("claude-haiku-4-5@20251001").unwrap();
+        assert_eq!(model.as_str(), "claude-haiku-4-5@20251001");
+
+        // Aliases
+        let model = Model::from_str("sonnet-4.5").unwrap();
+        assert_eq!(model.as_str(), "claude-sonnet-4-5@20250929");
+
+        let model = Model::from_str("haiku45").unwrap();
+        assert_eq!(model.as_str(), "claude-haiku-4-5@20251001");
+    }
+
+    #[test]
+    fn test_model_from_str_gemini() {
+        // Full model IDs
+        let model = Model::from_str("gemini-2.5-pro").unwrap();
+        assert_eq!(model.as_str(), "gemini-2.5-pro");
+
+        let model = Model::from_str("gemini-2.5-flash").unwrap();
+        assert_eq!(model.as_str(), "gemini-2.5-flash");
+
+        let model = Model::from_str("gemini-2.5-flash-lite").unwrap();
+        assert_eq!(model.as_str(), "gemini-2.5-flash-lite");
+
+        // Aliases
+        let model = Model::from_str("gemini-pro").unwrap();
+        assert_eq!(model.as_str(), "gemini-2.5-pro");
+
+        let model = Model::from_str("gemini-flash").unwrap();
+        assert_eq!(model.as_str(), "gemini-2.5-flash");
+    }
+
+    #[test]
+    fn test_model_from_str_invalid() {
+        let result = Model::from_str("invalid-model");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown model"));
     }
 }
