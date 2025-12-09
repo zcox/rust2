@@ -4,6 +4,7 @@
 //! It includes the `ToolExecutor` trait and the `FunctionRegistry` for managing
 //! and executing registered tool functions.
 
+pub mod builtin;
 pub mod declaration;
 pub mod executor;
 pub mod registry;

@@ -4,34 +4,15 @@ use rust2::llm::core::{
     provider::{create_provider, LlmProvider},
     types::Model,
 };
-use rust2::llm::tools::executor::ToolExecutor;
+use rust2::llm::tools::{
+    builtin::calculator::{calculate, CalculatorArgs},
+    create_tool_declaration,
+    executor::ToolExecutor,
+    registry::FunctionRegistry,
+};
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use rust2::routes::configure_routes;
 use std::sync::Arc;
-
-use async_trait::async_trait;
-
-/// Mock tool executor for development
-/// TODO: Replace with real tool executor
-struct MockToolExecutor;
-
-#[async_trait]
-impl ToolExecutor for MockToolExecutor {
-    async fn execute(
-        &self,
-        _tool_use_id: String,
-        name: String,
-        arguments: serde_json::Value,
-    ) -> Result<String, String> {
-        // Return mock result
-        Ok(serde_json::json!({
-            "tool": name,
-            "arguments": arguments,
-            "result": "Mock tool execution result"
-        })
-        .to_string())
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -82,9 +63,24 @@ async fn main() {
 
     println!("✓ Created LLM provider ({})", model_name);
 
-    // 4. Create tool executor (mock for now)
-    let tool_executor: Arc<dyn ToolExecutor> = Arc::new(MockToolExecutor);
-    println!("✓ Created tool executor (mock)");
+    // 4. Create tool registry and register calculator tool
+    let mut registry = FunctionRegistry::new();
+
+    // Register calculator tool
+    let calculator_declaration = create_tool_declaration::<CalculatorArgs>(
+        "calculator",
+        "Perform basic arithmetic operations: add, subtract, multiply, or divide two numbers",
+    );
+    registry
+        .register_sync_tool(calculate, calculator_declaration)
+        .expect("Failed to register calculator tool");
+
+    println!("✓ Registered calculator tool");
+
+    // Get all tool declarations for the agent
+    let tool_declarations = registry.get_declarations();
+    let tool_executor: Arc<dyn ToolExecutor> = Arc::new(registry);
+    println!("✓ Created tool executor with {} tools", tool_declarations.len());
 
     // 5. Create EventSourcedAgent
     let generation_config = GenerationConfig::new(2048); // max_tokens
@@ -96,7 +92,7 @@ async fn main() {
         llm_provider,
         tool_executor,
         thread_store.clone(),
-        vec![], // No tools for now
+        tool_declarations,
         generation_config,
         system_prompt,
     ));
