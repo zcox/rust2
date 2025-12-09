@@ -4,15 +4,13 @@ use rust2::llm::core::{
     provider::{create_provider, LlmProvider},
     types::Model,
 };
-use rust2::llm::tools::{
-    builtin::calculator::{calculate, CalculatorArgs},
-    create_tool_declaration,
-    executor::ToolExecutor,
-    registry::FunctionRegistry,
-};
+use rust2::llm::tools::{executor::ToolExecutor, registry::FunctionRegistry};
 use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use rust2::routes::configure_routes;
 use std::sync::Arc;
+
+// Import the generated calculator_tool module from the #[tool] macro
+use rust2::llm::tools::builtin::calculator::calculate_tool;
 
 #[tokio::main]
 async fn main() {
@@ -66,18 +64,15 @@ async fn main() {
     // 4. Create tool registry and register calculator tool
     let mut registry = FunctionRegistry::new();
 
-    // Register calculator tool
-    let calculator_declaration = create_tool_declaration::<CalculatorArgs>(
-        "calculator",
-        "Perform basic arithmetic operations: add, subtract, multiply, or divide two numbers",
-    );
+    // Register calculator tool using the #[tool] macro generated module
+    // This is much simpler - no need to manually create declarations!
     registry
-        .register_sync_tool(calculate, calculator_declaration)
+        .register(calculate_tool::registration())
         .expect("Failed to register calculator tool");
 
     println!("✓ Registered calculator tool");
 
-    // Get all tool declarations for the agent
+    // Get all tool declarations from the registry
     let tool_declarations = registry.get_declarations();
     let tool_executor: Arc<dyn ToolExecutor> = Arc::new(registry);
     println!("✓ Created tool executor with {} tools", tool_declarations.len());

@@ -38,6 +38,7 @@ use syn::{parse_macro_input, punctuated::Punctuated, token::Comma, Expr, ExprLit
 ///
 /// - `description`: (required) Description of what the tool does
 /// - `name`: (optional) Override the tool name (defaults to function name)
+/// - `crate_path`: (optional) Path to the rust2 crate (defaults to "::rust2" for external usage, use "crate" for internal)
 ///
 #[proc_macro_attribute]
 pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -50,6 +51,7 @@ pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Extract metadata from attributes
     let mut description = None;
     let mut tool_name = None;
+    let mut crate_path = None;
 
     for arg in attr_args {
         match arg {
@@ -61,6 +63,10 @@ pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
                 } else if nv.path.is_ident("name") {
                     if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &nv.value {
                         tool_name = Some(lit.value());
+                    }
+                } else if nv.path.is_ident("crate_path") {
+                    if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &nv.value {
+                        crate_path = Some(lit.value());
                     }
                 }
             }
@@ -84,6 +90,10 @@ pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Default to function name if not specified
     let fn_name = &input_fn.sig.ident;
     let tool_name = tool_name.unwrap_or_else(|| fn_name.to_string());
+
+    // Default crate path to ::rust2 for external usage
+    let crate_path = crate_path.unwrap_or_else(|| "::rust2".to_string());
+    let crate_path_tokens: proc_macro2::TokenStream = crate_path.parse().unwrap();
 
     // Extract the argument type from the first parameter
     let arg_type = match input_fn.sig.inputs.first() {
@@ -191,8 +201,8 @@ pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
             pub const NAME: &str = #tool_name;
 
             /// Get the ToolDeclaration for this tool
-            pub fn declaration() -> rust2::llm::ToolDeclaration {
-                rust2::llm::create_tool_declaration::<#base_type>(
+            pub fn declaration() -> #crate_path_tokens::llm::ToolDeclaration {
+                #crate_path_tokens::llm::create_tool_declaration::<#base_type>(
                     #tool_name,
                     #description
                 )
@@ -207,10 +217,10 @@ pub fn tool(attr: TokenStream, item: TokenStream) -> TokenStream {
             /// ```ignore
             /// registry.register(calculator_tool::registration())?;
             /// ```
-            pub fn registration() -> rust2::llm::tools::ToolRegistration {
+            pub fn registration() -> #crate_path_tokens::llm::tools::ToolRegistration {
                 #wrapper_logic
 
-                rust2::llm::tools::ToolRegistration {
+                #crate_path_tokens::llm::tools::ToolRegistration {
                     name: NAME,
                     function: Box::new(wrapper),
                     declaration: declaration(),

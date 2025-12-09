@@ -1,13 +1,24 @@
 //! Calculator builtin tool for performing simple arithmetic operations
 
+use rust2_tool_macros::tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+/// The mathematical operation to perform
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Operation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
 
 /// Arguments for the calculator tool
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CalculatorArgs {
-    /// The mathematical operation to perform: "add", "subtract", "multiply", or "divide"
-    pub operation: String,
+    /// The mathematical operation to perform
+    pub operation: Operation,
     /// The first operand
     pub a: f64,
     /// The second operand
@@ -19,29 +30,27 @@ pub struct CalculatorArgs {
 pub struct CalculatorResult {
     /// The result of the calculation
     pub result: f64,
-    /// The operation that was performed
-    pub operation: String,
 }
 
 /// Execute a simple calculation
+#[tool(
+    description = "Perform basic arithmetic operations: add, subtract, multiply, or divide two numbers",
+    crate_path = "crate"
+)]
 pub fn calculate(args: CalculatorArgs) -> Result<CalculatorResult, String> {
-    let result = match args.operation.to_lowercase().as_str() {
-        "add" => args.a + args.b,
-        "subtract" => args.a - args.b,
-        "multiply" => args.a * args.b,
-        "divide" => {
+    let result = match args.operation {
+        Operation::Add => args.a + args.b,
+        Operation::Subtract => args.a - args.b,
+        Operation::Multiply => args.a * args.b,
+        Operation::Divide => {
             if args.b == 0.0 {
                 return Err("Cannot divide by zero".to_string());
             }
             args.a / args.b
         }
-        op => return Err(format!("Unknown operation: {}", op)),
     };
 
-    Ok(CalculatorResult {
-        result,
-        operation: args.operation,
-    })
+    Ok(CalculatorResult { result })
 }
 
 #[cfg(test)]
@@ -51,7 +60,7 @@ mod tests {
     #[test]
     fn test_addition() {
         let args = CalculatorArgs {
-            operation: "add".to_string(),
+            operation: Operation::Add,
             a: 5.0,
             b: 3.0,
         };
@@ -62,7 +71,7 @@ mod tests {
     #[test]
     fn test_subtraction() {
         let args = CalculatorArgs {
-            operation: "subtract".to_string(),
+            operation: Operation::Subtract,
             a: 10.0,
             b: 4.0,
         };
@@ -73,7 +82,7 @@ mod tests {
     #[test]
     fn test_multiplication() {
         let args = CalculatorArgs {
-            operation: "multiply".to_string(),
+            operation: Operation::Multiply,
             a: 7.0,
             b: 6.0,
         };
@@ -84,7 +93,7 @@ mod tests {
     #[test]
     fn test_division() {
         let args = CalculatorArgs {
-            operation: "divide".to_string(),
+            operation: Operation::Divide,
             a: 15.0,
             b: 3.0,
         };
@@ -95,24 +104,12 @@ mod tests {
     #[test]
     fn test_division_by_zero() {
         let args = CalculatorArgs {
-            operation: "divide".to_string(),
+            operation: Operation::Divide,
             a: 10.0,
             b: 0.0,
         };
         let result = calculate(args);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Cannot divide by zero");
-    }
-
-    #[test]
-    fn test_unknown_operation() {
-        let args = CalculatorArgs {
-            operation: "power".to_string(),
-            a: 2.0,
-            b: 3.0,
-        };
-        let result = calculate(args);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Unknown operation"));
     }
 }
