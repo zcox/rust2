@@ -14,7 +14,7 @@ use rust2::llm::core::{
     provider::LlmProvider,
     types::{
         ContentBlockStart, ContentDelta, FinishReason, GenerateRequest, MessageMetadata,
-        MessageRole, PartialToolCall, StreamEvent, UsageMetadata,
+        MessageRole, StreamEvent, UsageMetadata,
     },
 };
 use rust2::llm::tools::executor::ToolExecutor;
@@ -43,35 +43,35 @@ struct MockLlmProvider {
 
 impl MockLlmProvider {
     /// Create a new mock provider with simple text response
-    fn with_text_response(text: impl Into<String>) -> Self {
-        let text = text.into();
-        let events = vec![
-            StreamEvent::MessageStart {
-                message: MessageMetadata {
-                    message_id: "msg_test".to_string(),
-                    role: MessageRole::Assistant,
-                    usage: None,
-                },
-            },
-            StreamEvent::ContentBlockStart {
-                index: 0,
-                block: ContentBlockStart::Text { text: text.clone() },
-            },
-            StreamEvent::MessageEnd {
-                finish_reason: FinishReason::EndTurn,
-                usage: UsageMetadata {
-                    input_tokens: 10,
-                    output_tokens: 20,
-                    total_tokens: 30,
-                },
-            },
-        ];
+    // fn with_text_response(text: impl Into<String>) -> Self {
+    //     let text = text.into();
+    //     let events = vec![
+    //         StreamEvent::MessageStart {
+    //             message: MessageMetadata {
+    //                 message_id: "msg_test".to_string(),
+    //                 role: MessageRole::Assistant,
+    //                 usage: None,
+    //             },
+    //         },
+    //         StreamEvent::ContentBlockStart {
+    //             index: 0,
+    //             block: ContentBlockStart::Text { text: text.clone() },
+    //         },
+    //         StreamEvent::MessageEnd {
+    //             finish_reason: FinishReason::EndTurn,
+    //             usage: UsageMetadata {
+    //                 input_tokens: 10,
+    //                 output_tokens: 20,
+    //                 total_tokens: 30,
+    //             },
+    //         },
+    //     ];
 
-        Self {
-            responses: vec![events],
-            call_count: Arc::new(Mutex::new(0)),
-        }
-    }
+    //     Self {
+    //         responses: vec![events],
+    //         call_count: Arc::new(Mutex::new(0)),
+    //     }
+    // }
 
     /// Create a new mock provider with multiple text responses
     fn with_multiple_text_responses(texts: Vec<impl Into<String> + Clone>) -> Self {
@@ -151,81 +151,81 @@ impl MockLlmProvider {
     }
 
     /// Create a provider that returns tool use then text
-    fn with_tool_use(
-        tool_name: impl Into<String>,
-        tool_input: serde_json::Value,
-        then_text: impl Into<String>,
-    ) -> Self {
-        let tool_name = tool_name.into();
-        let tool_id = "toolu_e2e_test".to_string();
-        let input_json = serde_json::to_string(&tool_input).unwrap();
+    // fn with_tool_use(
+    //     tool_name: impl Into<String>,
+    //     tool_input: serde_json::Value,
+    //     then_text: impl Into<String>,
+    // ) -> Self {
+    //     let tool_name = tool_name.into();
+    //     let tool_id = "toolu_e2e_test".to_string();
+    //     let input_json = serde_json::to_string(&tool_input).unwrap();
 
-        // First response: tool use
-        let first_response = vec![
-            StreamEvent::MessageStart {
-                message: MessageMetadata {
-                    message_id: "msg_tool_use".to_string(),
-                    role: MessageRole::Assistant,
-                    usage: None,
-                },
-            },
-            StreamEvent::ContentBlockStart {
-                index: 0,
-                block: ContentBlockStart::ToolCall {
-                    tool_call_id: tool_id.clone(),
-                    name: tool_name.clone(),
-                },
-            },
-            StreamEvent::ContentDelta {
-                index: 0,
-                delta: ContentDelta::ToolCallDelta {
-                    partial: PartialToolCall {
-                        tool_call_id: Some(tool_id.clone()),
-                        name: Some(tool_name.clone()),
-                        partial_json: input_json,
-                    },
-                },
-            },
-            StreamEvent::ContentBlockEnd { index: 0 },
-            StreamEvent::MessageEnd {
-                finish_reason: FinishReason::ToolUse,
-                usage: UsageMetadata {
-                    input_tokens: 10,
-                    output_tokens: 5,
-                    total_tokens: 15,
-                },
-            },
-        ];
+    //     // First response: tool use
+    //     let first_response = vec![
+    //         StreamEvent::MessageStart {
+    //             message: MessageMetadata {
+    //                 message_id: "msg_tool_use".to_string(),
+    //                 role: MessageRole::Assistant,
+    //                 usage: None,
+    //             },
+    //         },
+    //         StreamEvent::ContentBlockStart {
+    //             index: 0,
+    //             block: ContentBlockStart::ToolCall {
+    //                 tool_call_id: tool_id.clone(),
+    //                 name: tool_name.clone(),
+    //             },
+    //         },
+    //         StreamEvent::ContentDelta {
+    //             index: 0,
+    //             delta: ContentDelta::ToolCallDelta {
+    //                 partial: PartialToolCall {
+    //                     tool_call_id: Some(tool_id.clone()),
+    //                     name: Some(tool_name.clone()),
+    //                     partial_json: input_json,
+    //                 },
+    //             },
+    //         },
+    //         StreamEvent::ContentBlockEnd { index: 0 },
+    //         StreamEvent::MessageEnd {
+    //             finish_reason: FinishReason::ToolUse,
+    //             usage: UsageMetadata {
+    //                 input_tokens: 10,
+    //                 output_tokens: 5,
+    //                 total_tokens: 15,
+    //             },
+    //         },
+    //     ];
 
-        // Second response: text after tool execution
-        let text = then_text.into();
-        let second_response = vec![
-            StreamEvent::MessageStart {
-                message: MessageMetadata {
-                    message_id: "msg_after_tool".to_string(),
-                    role: MessageRole::Assistant,
-                    usage: None,
-                },
-            },
-            StreamEvent::ContentBlockStart {
-                index: 0,
-                block: ContentBlockStart::Text { text: text.clone() },
-            },
-            StreamEvent::MessageEnd {
-                finish_reason: FinishReason::EndTurn,
-                usage: UsageMetadata {
-                    input_tokens: 15,
-                    output_tokens: 10,
-                    total_tokens: 25,
-                },
-            },
-        ];
+    //     // Second response: text after tool execution
+    //     let text = then_text.into();
+    //     let second_response = vec![
+    //         StreamEvent::MessageStart {
+    //             message: MessageMetadata {
+    //                 message_id: "msg_after_tool".to_string(),
+    //                 role: MessageRole::Assistant,
+    //                 usage: None,
+    //             },
+    //         },
+    //         StreamEvent::ContentBlockStart {
+    //             index: 0,
+    //             block: ContentBlockStart::Text { text: text.clone() },
+    //         },
+    //         StreamEvent::MessageEnd {
+    //             finish_reason: FinishReason::EndTurn,
+    //             usage: UsageMetadata {
+    //                 input_tokens: 15,
+    //                 output_tokens: 10,
+    //                 total_tokens: 25,
+    //             },
+    //         },
+    //     ];
 
-        Self {
-            responses: vec![first_response, second_response],
-            call_count: Arc::new(Mutex::new(0)),
-        }
-    }
+    //     Self {
+    //         responses: vec![first_response, second_response],
+    //         call_count: Arc::new(Mutex::new(0)),
+    //     }
+    // }
 
     /// Create a provider that always fails (for error testing)
     fn with_error() -> Self {

@@ -41,35 +41,35 @@ struct MockLlmProvider {
 
 impl MockLlmProvider {
     /// Create a new mock provider with simple text response
-    fn with_text_response(text: impl Into<String>) -> Self {
-        let text = text.into();
-        let events = vec![
-            StreamEvent::MessageStart {
-                message: MessageMetadata {
-                    message_id: "msg_test".to_string(),
-                    role: MessageRole::Assistant,
-                    usage: None,
-                },
-            },
-            StreamEvent::ContentBlockStart {
-                index: 0,
-                block: ContentBlockStart::Text { text: text.clone() },
-            },
-            StreamEvent::MessageEnd {
-                finish_reason: FinishReason::EndTurn,
-                usage: UsageMetadata {
-                    input_tokens: 10,
-                    output_tokens: 20,
-                    total_tokens: 30,
-                },
-            },
-        ];
+    // fn with_text_response(text: impl Into<String>) -> Self {
+    //     let text = text.into();
+    //     let events = vec![
+    //         StreamEvent::MessageStart {
+    //             message: MessageMetadata {
+    //                 message_id: "msg_test".to_string(),
+    //                 role: MessageRole::Assistant,
+    //                 usage: None,
+    //             },
+    //         },
+    //         StreamEvent::ContentBlockStart {
+    //             index: 0,
+    //             block: ContentBlockStart::Text { text: text.clone() },
+    //         },
+    //         StreamEvent::MessageEnd {
+    //             finish_reason: FinishReason::EndTurn,
+    //             usage: UsageMetadata {
+    //                 input_tokens: 10,
+    //                 output_tokens: 20,
+    //                 total_tokens: 30,
+    //             },
+    //         },
+    //     ];
 
-        Self {
-            responses: vec![events],
-            call_count: Arc::new(Mutex::new(0)),
-        }
-    }
+    //     Self {
+    //         responses: vec![events],
+    //         call_count: Arc::new(Mutex::new(0)),
+    //     }
+    // }
 
     /// Create a new mock provider with multiple text responses
     fn with_multiple_text_responses(texts: Vec<impl Into<String> + Clone>) -> Self {

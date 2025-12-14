@@ -50,6 +50,7 @@ mod tests {
     use serde::Deserialize;
 
     #[derive(Deserialize, JsonSchema)]
+    #[allow(dead_code)]
     struct TestArgs {
         /// A string field
         field1: String,
