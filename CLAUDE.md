@@ -84,6 +84,7 @@ Unified interface for Claude and Gemini on Google Cloud Vertex AI:
 - **Claude**: `claude/{client,mapper,sse,types}.rs` - Claude implementation
 - **Auth**: `auth/adc.rs` - Application Default Credentials for GCP
 - **Tools**: `tools/{registry,executor}.rs` - Function calling support
+- **Builtin Tools**: `tools/builtin/` - Pre-built tools for agent use
 
 **Architecture Pattern**:
 - Both Claude and Gemini implement the `LlmProvider` trait with a single `stream_generate()` method
@@ -101,6 +102,21 @@ Unified interface for Claude and Gemini on Google Cloud Vertex AI:
 - `StreamEvent` - Streaming response events (MessageStart, ContentDelta, ToolUse, MessageStop)
 - `ContentBlock` - Text or tool use content
 - `ToolDeclaration` - Function calling schema
+
+**Builtin Tools** (`tools/builtin/`):
+The agent has access to builtin tools that extend its capabilities:
+
+- **calculator** (`calculator.rs`) - Evaluates mathematical expressions using the meval library
+  - Example: `calculate("2 + 2 * 3")` returns `8.0`
+  - Supports standard operators, functions (sin, cos, sqrt, etc.), and variables
+
+- **tavily_search** (`tavily_search.rs`) - Searches the web for current information using Tavily's API
+  - Returns relevant web pages with titles, URLs, and content snippets
+  - Configurable parameters: max_results (0-20), topic (general/news/finance), search_depth (basic/advanced), include_answer (AI-generated summary)
+  - Requires `TAVILY_API_KEY` environment variable
+  - Example: Agent can search for recent news, fact-check information, or find current data
+
+All builtin tools use the `#[tool]` macro for automatic registration and JSON schema generation.
 
 ## Code Organization
 
@@ -134,3 +150,11 @@ Never use generic `id` field names in API types, models, or JSON payloads. Alway
 
 ### SSE Event Format
 The chat API uses a specific SSE format with `event:` and `data:` fields. See README.md API documentation for exact event types and JSON schemas.
+
+### Builtin Tool Requirements
+Some builtin tools require API keys or additional configuration:
+
+- **tavily_search**: Requires `TAVILY_API_KEY` environment variable for web search functionality
+  - Sign up at https://tavily.com to get an API key
+  - Add to `.env` file: `TAVILY_API_KEY=tvly-your-api-key-here`
+  - The tool will return an error if the API key is missing

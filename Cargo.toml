@@ -29,9 +29,12 @@ async-stream = "0.3"
 pin-utils = "0.1"
 schemars = "0.8"
 dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 testcontainers = "0.15"
 tokio-test = "0.4"
 warp = { version = "0.4", features = ["server", "test"] }
 portpicker = "0.1"
+mockito = "1.5"

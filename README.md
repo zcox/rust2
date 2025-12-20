@@ -13,6 +13,9 @@ This repository contains:
 - RESTful API endpoints for thread message management
 - Server-Sent Events (SSE) for real-time streaming responses
 - Support for multiple message types: user messages, agent responses, tool calls, and tool responses
+- Builtin tools for extended capabilities:
+  - **Calculator**: Mathematical expression evaluation
+  - **Web Search**: Real-time web search via Tavily API for current information
 - Asynchronous request handling with Tokio
 - JSON serialization with Serde
 
@@ -56,7 +59,20 @@ cp .env.example .env
 # Edit .env and set your GCP credentials
 GCP_PROJECT_ID=your-project-id
 GCP_LOCATION=us-central1
+
+# Optional: Add Tavily API key for web search functionality
+TAVILY_API_KEY=tvly-your-api-key-here
 ```
+
+**Required Configuration:**
+- `GCP_PROJECT_ID`: Your Google Cloud project ID
+- `GCP_LOCATION`: GCP region (default: us-central1)
+
+**Optional Configuration:**
+- `TAVILY_API_KEY`: API key for web search tool (sign up at https://tavily.com)
+  - If not set, the agent will still work but web search functionality will be unavailable
+- `MODEL_NAME`: LLM model to use (default: gemini-2.5-flash)
+  - Options: `gemini-2.5-flash`, `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`, etc.
 
 **GCP Authentication:**
 The server uses Google Cloud Application Default Credentials (ADC) for authenticating with Vertex AI. Set up authentication using one of these methods:
@@ -258,6 +274,59 @@ eventSource.addEventListener('done', () => {
   console.log('Stream complete');
   eventSource.close();
 });
+```
+
+## Builtin Tools
+
+The agent has access to builtin tools that extend its capabilities:
+
+### Calculator Tool
+
+Evaluates mathematical expressions using the meval library.
+
+**Example queries:**
+- "What is 2 + 2 * 3?"
+- "Calculate the square root of 144"
+- "What's sin(pi/2)?"
+
+**Supported features:**
+- Standard operators: `+`, `-`, `*`, `/`, `^` (exponentiation)
+- Functions: `sin`, `cos`, `tan`, `sqrt`, `abs`, `floor`, `ceil`, etc.
+- Constants: `pi`, `e`
+
+### Web Search Tool (Tavily)
+
+Searches the web for current information using Tavily's search API.
+
+**Example queries:**
+- "What's the latest news about AI?"
+- "Search for recent developments in Rust programming"
+- "Find information about the weather in San Francisco"
+
+**Features:**
+- Returns relevant web pages with titles, URLs, and content snippets
+- Configurable number of results (default: 5, max: 20)
+- Topic filtering: general, news, or finance
+- Search depth: basic or advanced
+- Optional AI-generated answer summarizing results
+
+**Configuration:**
+Requires `TAVILY_API_KEY` environment variable. Sign up at https://tavily.com to get an API key.
+
+**Testing the Web Search Tool:**
+
+You can test the web search functionality using the example program:
+
+```bash
+# Make sure TAVILY_API_KEY is set in your .env file
+cargo run --example tavily_search_demo
+```
+
+Or run the integration test (uses real API):
+
+```bash
+# Make sure TAVILY_API_KEY is set
+cargo test --test tavily_integration_test
 ```
 
 ---

@@ -9,8 +9,9 @@ use rust2::message_db::{MessageDbClient, MessageDbConfig};
 use rust2::routes::configure_routes;
 use std::sync::Arc;
 
-// Import the generated calculator_tool module from the #[tool] macro
+// Import the generated tool modules from the #[tool] macro
 use rust2::llm::tools::builtin::calculator::calculate_tool;
+use rust2::llm::tools::builtin::tavily_search::tavily_search_tool;
 
 #[tokio::main]
 async fn main() {
@@ -64,13 +65,17 @@ async fn main() {
     // 4. Create tool registry and register calculator tool
     let mut registry = FunctionRegistry::new();
 
-    // Register calculator tool using the #[tool] macro generated module
+    // Register builtin tools using the #[tool] macro generated modules
     // This is much simpler - no need to manually create declarations!
     registry
         .register(calculate_tool::registration())
         .expect("Failed to register calculator tool");
 
-    println!("✓ Registered calculator tool");
+    registry
+        .register(tavily_search_tool::registration())
+        .expect("Failed to register tavily search tool");
+
+    println!("✓ Registered builtin tools (calculator, tavily_search)");
 
     // Get all tool declarations from the registry
     let tool_declarations = registry.get_declarations();
